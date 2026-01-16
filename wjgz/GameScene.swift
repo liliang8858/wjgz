@@ -18,13 +18,18 @@ class GameScene: SKScene {
     private var effectLayer: SKNode!
     private var uiLayer: SKNode!
     
+    // MARK: - Managers
+    private var effectsManager: EffectsManager!
+    
     // MARK: - Grid Data
     private var grid: [String: Sword] = [:]
+    private var blockedCells: Set<String> = []
     
     // MARK: - Drag State
     private var draggedSword: Sword?
     private var originalPosition: CGPoint?
     private var originalGridIndex: (q: Int, r: Int)?
+    private var lastDragPosition: CGPoint?
     
     // MARK: - Game State
     private var energy: CGFloat = 0
@@ -32,7 +37,11 @@ class GameScene: SKScene {
     private var mergeCount: Int = 0
     private var comboCount: Int = 0
     private var comboTimer: Timer?
+    private var moveCount: Int = 0
+    private var timeRemaining: TimeInterval = 0
+    private var gameTimer: Timer?
     private var currentLevel: Level!
+    private var isGameOver: Bool = false
     
     // MARK: - UI Elements
     private var scoreLabel: SKLabelNode!
@@ -42,6 +51,8 @@ class GameScene: SKScene {
     private var energyBarFill: SKShapeNode!
     private var ultimateButton: SKNode!
     private var comboLabel: SKLabelNode?
+    private var timerLabel: SKLabelNode?
+    private var moveLabel: SKLabelNode?
     
     // MARK: - Tutorial
     private var tutorialStep: Int = 0
@@ -54,10 +65,19 @@ class GameScene: SKScene {
         currentLevel = LevelConfig.shared.getCurrentLevel()
         
         setupLayers()
+        effectsManager = EffectsManager(scene: self, effectLayer: effectLayer)
+        
         createBackground()
         createGrid()
         spawnInitialSwords()
         setupUI()
+        setupLevelRules()
+        
+        // 开始背景粒子
+        effectsManager.startBackgroundParticles()
+        
+        // 关卡开始特效
+        effectsManager.playLevelStartEffect(levelName: currentLevel.name)
         
         if !GameStateManager.shared.tutorialCompleted {
             showTutorial()
@@ -86,29 +106,149 @@ class GameScene: SKScene {
         addChild(uiLayer)
     }
     
+    private func setupLevelRules() {
+        let rules = currentLevel.rules
+        
+        // 时间限制
+        if let timeLimit = rules.timeLimit {
+            timeRemaining = timeLimit
+            startTimer()
+        }
+        
+        // 封锁格子
+        if rules.hasBlockedCells {
+            setupBlockedCells(count: rules.blockedCellCount)
+        }
+        
+        // 自动洗牌
+        if let interval = rules.shuffleInterval {
+            startAutoShuffle(interval: interval)
+        }
+    }
+    
+    private func startTimer() {
+        gameTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            self.timeRemaining -= 1
+            self.updateTimerDisplay()
+            
+            if self.timeRemaining <= 10 {
+                // 紧迫感特效
+                self.effectsManager.flashScreen(color: .red, duration: 0.2)
+            }
+            
+            if self.timeRemaining <= 0 {
+                self.gameTimer?.invalidate()
+                self.triggerGameOver()
+            }
+        }
+    }
+    
+    private func setupBlockedCells(count: Int) {
+        let mapRadius = currentLevel.gridRadius
+        var allCells: [(Int, Int)] = []
+        
+        for q in -mapRadius...mapRadius {
+            let r1 = max(-mapRadius, -q - mapRadius)
+            let r2 = min(mapRadius, -q + mapRadius)
+            for r in r1...r2 {
+                if q != 0 || r != 0 { // 不封锁中心
+                    allCells.append((q, r))
+                }
+            }
+        }
+        
+        let blocked = allCells.shuffled().prefix(count)
+        for (q, r) in blocked {
+            blockedCells.insert("\(q)_\(r)")
+            
+            // 添加封锁视觉效果
+            if let tile = gridLayer.childNode(withName: "tile_\(q)_\(r)") as? SKShapeNode {
+                tile.fillColor = SKColor(red: 0.3, green: 0.1, blue: 0.1, alpha: 0.8)
+                
+                let lock = SKLabelNode(text: "🔒")
+                lock.fontSize = 20
+                lock.position = .zero
+                tile.addChild(lock)
+            }
+        }
+    }
+    
+    private func startAutoShuffle(interval: TimeInterval) {
+        let shuffleAction = SKAction.sequence([
+            SKAction.wait(forDuration: interval),
+            SKAction.run { [weak self] in
+                self?.shuffleBoard()
+            }
+        ])
+        run(SKAction.repeatForever(shuffleAction), withKey: "autoShuffle")
+    }
+    
+    private func shuffleBoard() {
+        effectsManager.showFeedbackText("剑阵重组!", at: .zero, style: .great)
+        effectsManager.shakeScreen(intensity: .medium)
+        
+        let allSwords = Array(grid.values)
+        var positions = allSwords.map { $0.gridPosition }
+        positions.shuffle()
+        
+        for (index, sword) in allSwords.enumerated() {
+            let newPos = positions[index]
+            let oldKey = "\(sword.gridPosition.q)_\(sword.gridPosition.r)"
+            let newKey = "\(newPos.q)_\(newPos.r)"
+            
+            grid.removeValue(forKey: oldKey)
+            grid[newKey] = sword
+            sword.gridPosition = newPos
+            
+            let targetPoint = hexToPixel(q: newPos.q, r: newPos.r)
+            sword.run(SKAction.move(to: targetPoint, duration: 0.5))
+        }
+    }
+    
     private func createBackground() {
-        // Radial gradient effect
         let gradientSize = max(size.width, size.height) * 1.5
         
-        // Golden glow at top
+        // 根据关卡类型调整背景颜色
+        let topColor: UIColor
+        let leftColor: UIColor
+        let rightColor: UIColor
+        
+        switch currentLevel.formationType {
+        case .hexagon, .diamond:
+            topColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 0.15)
+            leftColor = SKColor(red: 0.2, green: 0.8, blue: 0.6, alpha: 0.1)
+            rightColor = SKColor(red: 0.6, green: 0.3, blue: 0.9, alpha: 0.1)
+        case .cross, .star:
+            topColor = SKColor(red: 1.0, green: 0.3, blue: 0.2, alpha: 0.15)
+            leftColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 0.1)
+            rightColor = SKColor(red: 0.9, green: 0.5, blue: 0.1, alpha: 0.1)
+        case .ring, .spiral:
+            topColor = SKColor(red: 0.3, green: 0.6, blue: 1.0, alpha: 0.15)
+            leftColor = SKColor(red: 0.2, green: 0.9, blue: 0.7, alpha: 0.1)
+            rightColor = SKColor(red: 0.5, green: 0.3, blue: 0.9, alpha: 0.1)
+        case .triangle, .random:
+            topColor = SKColor(red: 0.7, green: 0.4, blue: 1.0, alpha: 0.15)
+            leftColor = SKColor(red: 1.0, green: 0.4, blue: 0.6, alpha: 0.1)
+            rightColor = SKColor(red: 0.3, green: 0.8, blue: 0.9, alpha: 0.1)
+        }
+        
         let topGlow = SKShapeNode(circleOfRadius: gradientSize * 0.4)
-        topGlow.fillColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 0.15)
+        topGlow.fillColor = topColor
         topGlow.strokeColor = .clear
         topGlow.position = CGPoint(x: 0, y: size.height * 0.3)
         topGlow.blendMode = .add
         backgroundLayer.addChild(topGlow)
         
-        // Jade glow at bottom left
         let leftGlow = SKShapeNode(circleOfRadius: gradientSize * 0.3)
-        leftGlow.fillColor = SKColor(red: 0.2, green: 0.8, blue: 0.6, alpha: 0.1)
+        leftGlow.fillColor = leftColor
         leftGlow.strokeColor = .clear
         leftGlow.position = CGPoint(x: -size.width * 0.3, y: -size.height * 0.3)
         leftGlow.blendMode = .add
         backgroundLayer.addChild(leftGlow)
         
-        // Purple glow at bottom right
         let rightGlow = SKShapeNode(circleOfRadius: gradientSize * 0.25)
-        rightGlow.fillColor = SKColor(red: 0.6, green: 0.3, blue: 0.9, alpha: 0.1)
+        rightGlow.fillColor = rightColor
         rightGlow.strokeColor = .clear
         rightGlow.position = CGPoint(x: size.width * 0.3, y: -size.height * 0.2)
         rightGlow.blendMode = .add
@@ -116,19 +256,45 @@ class GameScene: SKScene {
     }
     
     private func createGrid() {
-        let mapRadius = 2
+        let mapRadius = currentLevel.gridRadius
+        let formation = currentLevel.formationType
         
         for q in -mapRadius...mapRadius {
             let r1 = max(-mapRadius, -q - mapRadius)
             let r2 = min(mapRadius, -q + mapRadius)
             
             for r in r1...r2 {
-                createTile(q: q, r: r)
+                if shouldCreateTile(q: q, r: r, formation: formation, radius: mapRadius) {
+                    createTile(q: q, r: r)
+                }
             }
         }
         
-        // Formation ring decoration
         createFormationRing()
+    }
+    
+    private func shouldCreateTile(q: Int, r: Int, formation: FormationType, radius: Int) -> Bool {
+        let s = -q - r
+        let distance = (abs(q) + abs(r) + abs(s)) / 2
+        
+        switch formation {
+        case .hexagon:
+            return true
+        case .diamond:
+            return abs(q) + abs(r) <= radius + 1
+        case .cross:
+            return q == 0 || r == 0 || s == 0
+        case .ring:
+            return distance >= 1
+        case .triangle:
+            return r >= 0 && q >= -r
+        case .star:
+            return distance <= 1 || q == 0 || r == 0 || s == 0
+        case .spiral:
+            return true // 全部显示，但有特殊重力
+        case .random:
+            return Double.random(in: 0...1) > 0.2
+        }
     }
     
     private func createTile(q: Int, r: Int) {
@@ -161,9 +327,8 @@ class GameScene: SKScene {
     }
     
     private func createFormationRing() {
-        let ringRadius = GameConfig.tileRadius * 5.5
+        let ringRadius = GameConfig.tileRadius * CGFloat(currentLevel.gridRadius + 3)
         
-        // Outer ring
         let outerRing = SKShapeNode(circleOfRadius: ringRadius)
         outerRing.strokeColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 0.4)
         outerRing.lineWidth = 2
@@ -171,7 +336,6 @@ class GameScene: SKScene {
         outerRing.glowWidth = 3
         gridLayer.addChild(outerRing)
         
-        // Inner rotating ring
         let innerRing = SKShapeNode(circleOfRadius: ringRadius - 10)
         innerRing.strokeColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 0.2)
         innerRing.lineWidth = 1
@@ -179,9 +343,7 @@ class GameScene: SKScene {
         innerRing.name = "innerRing"
         gridLayer.addChild(innerRing)
         
-        // Rotate animation
-        let rotate = SKAction.rotate(byAngle: .pi * 2, duration: 30)
-        innerRing.run(SKAction.repeatForever(rotate))
+        innerRing.run(SKAction.repeatForever(SKAction.rotate(byAngle: .pi * 2, duration: 30)))
     }
 
     
@@ -233,37 +395,46 @@ class GameScene: SKScene {
     
     private func replenishSwords(fillAll: Bool = false) {
         var emptySlots: [(Int, Int)] = []
-        let mapRadius = 2
+        let mapRadius = currentLevel.gridRadius
         
         for q in -mapRadius...mapRadius {
             let r1 = max(-mapRadius, -q - mapRadius)
             let r2 = min(mapRadius, -q + mapRadius)
             for r in r1...r2 {
-                if grid["\(q)_\(r)"] == nil {
-                    emptySlots.append((q, r))
+                let key = "\(q)_\(r)"
+                if grid[key] == nil && !blockedCells.contains(key) {
+                    if shouldCreateTile(q: q, r: r, formation: currentLevel.formationType, radius: mapRadius) {
+                        emptySlots.append((q, r))
+                    }
                 }
             }
         }
         
-        if emptySlots.isEmpty && grid.count >= 19 {
-            triggerGameOver()
+        if emptySlots.isEmpty && !grid.isEmpty {
+            if !hasAnyPossibleMatches() {
+                triggerGameOver()
+            }
             return
         }
         
         let count = fillAll ? min(emptySlots.count, 9) : min(emptySlots.count, 3)
         let slots = emptySlots.shuffled().prefix(count)
         
-        // Ensure at least 3 matching swords for playability
+        // 根据关卡权重生成剑
         var swordTypes: [SwordType] = []
+        let weights = currentLevel.spawnWeights
+        
+        // 确保至少有3把相同的剑
         if fillAll && count >= 3 {
-            swordTypes = [.fan, .fan, .fan]
+            let guaranteedType = currentLevel.initialSwordTypes.randomElement() ?? .fan
+            swordTypes = [guaranteedType, guaranteedType, guaranteedType]
             for _ in 3..<count {
-                swordTypes.append(Double.random(in: 0...1) < 0.8 ? .fan : .ling)
+                swordTypes.append(weightedRandomSword(weights: weights))
             }
             swordTypes.shuffle()
         } else {
             for _ in 0..<count {
-                swordTypes.append(Double.random(in: 0...1) < 0.8 ? .fan : .ling)
+                swordTypes.append(weightedRandomSword(weights: weights))
             }
         }
         
@@ -273,16 +444,35 @@ class GameScene: SKScene {
             if let sword = grid["\(slot.0)_\(slot.1)"] {
                 sword.setScale(0)
                 sword.alpha = 0
-                let spawn = SKAction.group([
-                    SKAction.scale(to: 1.0, duration: 0.3),
-                    SKAction.fadeIn(withDuration: 0.3)
-                ])
-                spawn.timingMode = .easeOut
-                sword.run(spawn)
+                
+                let delay = Double(index) * 0.05
+                sword.run(SKAction.sequence([
+                    SKAction.wait(forDuration: delay),
+                    SKAction.group([
+                        SKAction.scale(to: 1.0, duration: 0.3),
+                        SKAction.fadeIn(withDuration: 0.3)
+                    ])
+                ]))
+                
+                // 生成时的小特效
+                effectsManager.playTapRipple(at: hexToPixel(q: slot.0, r: slot.1))
             }
         }
         
         performPlayabilityCheck()
+    }
+    
+    private func weightedRandomSword(weights: [SwordType: Double]) -> SwordType {
+        let total = weights.values.reduce(0, +)
+        var random = Double.random(in: 0..<total)
+        
+        for (type, weight) in weights {
+            random -= weight
+            if random <= 0 {
+                return type
+            }
+        }
+        return .fan
     }
     
     private func spawnSword(at gridPos: (Int, Int), type: SwordType) {
@@ -303,33 +493,34 @@ class GameScene: SKScene {
         titleLabel.position = CGPoint(x: 0, y: size.height/2 - 70)
         uiLayer.addChild(titleLabel)
         
-        // Subtitle
-        let subtitleLabel = SKLabelNode(text: "拖动飞剑，助其归宗")
-        subtitleLabel.fontSize = 14
-        subtitleLabel.fontName = "PingFangSC-Regular"
-        subtitleLabel.fontColor = SKColor(white: 0.6, alpha: 1.0)
-        subtitleLabel.position = CGPoint(x: 0, y: size.height/2 - 95)
-        uiLayer.addChild(subtitleLabel)
-        
         // Level info
         levelLabel = SKLabelNode(text: "第\(currentLevel.id)关 - \(currentLevel.name)")
         levelLabel.fontSize = 22
         levelLabel.fontName = "PingFangSC-Semibold"
         levelLabel.fontColor = .white
-        levelLabel.position = CGPoint(x: 0, y: size.height/2 - 125)
+        levelLabel.position = CGPoint(x: 0, y: size.height/2 - 100)
         uiLayer.addChild(levelLabel)
         
+        // Subtitle
+        let subtitleLabel = SKLabelNode(text: currentLevel.subtitle)
+        subtitleLabel.fontSize = 14
+        subtitleLabel.fontName = "PingFangSC-Regular"
+        subtitleLabel.fontColor = SKColor(white: 0.6, alpha: 1.0)
+        subtitleLabel.position = CGPoint(x: 0, y: size.height/2 - 125)
+        uiLayer.addChild(subtitleLabel)
+        
         // Goal
-        goalLabel = SKLabelNode(text: "目标: \(currentLevel.targetScore)分")
-        goalLabel.fontSize = 16
+        goalLabel = SKLabelNode(text: "目标: \(currentLevel.targetScore)分 | \(currentLevel.targetMerges)次合成")
+        goalLabel.fontSize = 14
         goalLabel.fontName = "PingFangSC-Regular"
         goalLabel.fontColor = SKColor(red: 0.5, green: 1.0, blue: 0.5, alpha: 1.0)
-        goalLabel.position = CGPoint(x: 0, y: size.height/2 - 150)
+        goalLabel.position = CGPoint(x: 0, y: size.height/2 - 148)
         uiLayer.addChild(goalLabel)
         
         setupScorePanel()
         setupEnergyBar()
         setupUltimateButton()
+        setupLevelConstraints()
     }
     
     private func setupScorePanel() {
@@ -375,6 +566,37 @@ class GameScene: SKScene {
         rightPanel.addChild(mergeLabel)
     }
     
+    private func setupLevelConstraints() {
+        let rules = currentLevel.rules
+        
+        // 时间限制显示
+        if rules.timeLimit != nil {
+            timerLabel = SKLabelNode(text: "⏱ \(Int(timeRemaining))s")
+            timerLabel?.fontSize = 24
+            timerLabel?.fontName = "PingFangSC-Bold"
+            timerLabel?.fontColor = .white
+            timerLabel?.position = CGPoint(x: 0, y: size.height/2 - 175)
+            uiLayer.addChild(timerLabel!)
+        }
+        
+        // 步数限制显示
+        if let moveLimit = rules.moveLimit {
+            moveLabel = SKLabelNode(text: "👆 \(moveLimit - moveCount)步")
+            moveLabel?.fontSize = 24
+            moveLabel?.fontName = "PingFangSC-Bold"
+            moveLabel?.fontColor = .white
+            moveLabel?.position = CGPoint(x: 0, y: size.height/2 - 175)
+            uiLayer.addChild(moveLabel!)
+        }
+    }
+    
+    private func updateTimerDisplay() {
+        timerLabel?.text = "⏱ \(Int(timeRemaining))s"
+        if timeRemaining <= 10 {
+            timerLabel?.fontColor = .red
+        }
+    }
+    
     private func createGlassPanel(size: CGSize) -> SKShapeNode {
         let panel = SKShapeNode(rectOf: size, cornerRadius: 15)
         panel.fillColor = SKColor(white: 0.1, alpha: 0.8)
@@ -388,7 +610,6 @@ class GameScene: SKScene {
         let barHeight: CGFloat = 16
         let barY = -size.height/2 + 185
         
-        // Label
         let energyLabel = SKLabelNode(text: "剑意")
         energyLabel.fontSize = 12
         energyLabel.fontName = "PingFangSC-Regular"
@@ -396,7 +617,6 @@ class GameScene: SKScene {
         energyLabel.position = CGPoint(x: -barWidth/2 - 30, y: barY - 5)
         uiLayer.addChild(energyLabel)
         
-        // Background
         energyBarBg = SKShapeNode(rectOf: CGSize(width: barWidth, height: barHeight), cornerRadius: 8)
         energyBarBg.fillColor = SKColor(white: 0.15, alpha: 0.9)
         energyBarBg.strokeColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 0.6)
@@ -404,14 +624,12 @@ class GameScene: SKScene {
         energyBarBg.position = CGPoint(x: 20, y: barY)
         uiLayer.addChild(energyBarBg)
         
-        // Fill
         energyBarFill = SKShapeNode(rectOf: CGSize(width: 0, height: barHeight - 4), cornerRadius: 6)
         energyBarFill.fillColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0)
         energyBarFill.strokeColor = .clear
         energyBarFill.position = CGPoint(x: 20 - barWidth/2 + 2, y: barY)
         uiLayer.addChild(energyBarFill)
     }
-
     
     private func setupUltimateButton() {
         ultimateButton = SKNode()
@@ -420,7 +638,6 @@ class GameScene: SKScene {
         ultimateButton.isHidden = true
         uiLayer.addChild(ultimateButton)
         
-        // Button background
         let btnBg = SKShapeNode(rectOf: CGSize(width: 180, height: 50), cornerRadius: 25)
         btnBg.fillColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 0.9)
         btnBg.strokeColor = .white
@@ -428,7 +645,6 @@ class GameScene: SKScene {
         btnBg.glowWidth = 5
         ultimateButton.addChild(btnBg)
         
-        // Button text
         let btnLabel = SKLabelNode(text: "⚔️ 万剑归宗 ⚔️")
         btnLabel.fontSize = 20
         btnLabel.fontName = "PingFangSC-Heavy"
@@ -436,22 +652,24 @@ class GameScene: SKScene {
         btnLabel.verticalAlignmentMode = .center
         ultimateButton.addChild(btnLabel)
         
-        // Hint text
         let hintLabel = SKLabelNode(text: "积蓄剑意中...")
         hintLabel.fontSize = 12
         hintLabel.fontName = "PingFangSC-Regular"
         hintLabel.fontColor = SKColor(white: 0.5, alpha: 1.0)
-        hintLabel.position = CGPoint(x: 0, y: -35)
+        hintLabel.position = CGPoint(x: 0, y: -size.height/2 + 45)
         hintLabel.name = "ultimateHint"
         uiLayer.addChild(hintLabel)
-        hintLabel.position = CGPoint(x: 0, y: -size.height/2 + 45)
     }
+
     
     // MARK: - Touch Handling
     
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let touch = touches.first else { return }
+        guard let touch = touches.first, !isGameOver else { return }
         let location = touch.location(in: self)
+        
+        // 点击涟漪特效
+        effectsManager.playTapRipple(at: location)
         
         let nodes = nodes(at: location)
         for node in nodes {
@@ -477,9 +695,10 @@ class GameScene: SKScene {
                 draggedSword = sword
                 originalPosition = sword.position
                 originalGridIndex = sword.gridPosition
+                lastDragPosition = location
                 sword.zPosition = 100
                 sword.run(SKAction.scale(to: 1.2, duration: 0.1))
-                sword.playSelectAnimation()
+                effectsManager.playSelectPulse(on: sword)
                 playClickSound()
                 break
             }
@@ -488,28 +707,52 @@ class GameScene: SKScene {
     
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let sword = draggedSword, let touch = touches.first else { return }
-        sword.position = touch.location(in: self)
+        let location = touch.location(in: self)
+        sword.position = location
+        
+        // 拖拽轨迹特效
+        if let lastPos = lastDragPosition {
+            let distance = hypot(location.x - lastPos.x, location.y - lastPos.y)
+            if distance > 15 {
+                effectsManager.playDragTrail(at: lastPos, color: sword.type.glowColor)
+                lastDragPosition = location
+            }
+        }
     }
     
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let sword = draggedSword, let touch = touches.first else { return }
         let location = touch.location(in: self)
         
-        sword.stopSelectAnimation()
+        sword.childNode(withName: "selectPulse")?.removeFromParent()
         let gridIndex = pixelToHex(point: location)
         handleDrop(sword: sword, at: gridIndex)
         
         draggedSword = nil
         originalPosition = nil
         originalGridIndex = nil
+        lastDragPosition = nil
     }
     
     private func handleDrop(sword: Sword, at targetIndex: (q: Int, r: Int)) {
         let targetKey = "\(targetIndex.q)_\(targetIndex.r)"
         
-        // Check bounds
+        // 检查是否是封锁格子
+        if blockedCells.contains(targetKey) {
+            effectsManager.showFeedbackText("此处封印!", at: sword.position, style: .normal)
+            returnToOriginalPosition(sword)
+            return
+        }
+        
+        // 检查边界
         let distance = (abs(targetIndex.q) + abs(targetIndex.q + targetIndex.r) + abs(targetIndex.r)) / 2
-        if distance > 2 {
+        if distance > currentLevel.gridRadius {
+            returnToOriginalPosition(sword)
+            return
+        }
+        
+        // 检查是否是有效格子
+        if !shouldCreateTile(q: targetIndex.q, r: targetIndex.r, formation: currentLevel.formationType, radius: currentLevel.gridRadius) {
             returnToOriginalPosition(sword)
             return
         }
@@ -517,13 +760,33 @@ class GameScene: SKScene {
         if let targetSword = grid[targetKey] {
             if targetSword != sword {
                 swapSwords(sword, targetSword)
+                incrementMove()
                 checkForMatches()
             } else {
                 returnToOriginalPosition(sword)
             }
         } else {
             moveSword(sword, to: targetIndex)
+            incrementMove()
             checkForMatches()
+        }
+    }
+    
+    private func incrementMove() {
+        moveCount += 1
+        
+        if let moveLimit = currentLevel.rules.moveLimit {
+            let remaining = moveLimit - moveCount
+            moveLabel?.text = "👆 \(remaining)步"
+            
+            if remaining <= 5 {
+                moveLabel?.fontColor = .red
+                effectsManager.flashScreen(color: .red, duration: 0.1)
+            }
+            
+            if remaining <= 0 {
+                triggerGameOver()
+            }
         }
     }
     
@@ -564,6 +827,7 @@ class GameScene: SKScene {
                 SKAction.move(to: pos, duration: 0.2),
                 SKAction.scale(to: 1.0, duration: 0.1)
             ]))
+            effectsManager.shakeScreen(intensity: .light)
         }
     }
     
@@ -572,14 +836,16 @@ class GameScene: SKScene {
     private func checkForMatches() {
         var visited = Set<String>()
         var hadMatches = false
+        var totalMatchCount = 0
         
         for (key, sword) in grid {
             if visited.contains(key) { continue }
             
             let matches = findMatches(startNode: sword)
-            if matches.count >= 3 {
+            if matches.count >= currentLevel.rules.minMergeCount {
                 mergeSwords(matches)
                 hadMatches = true
+                totalMatchCount += matches.count
                 for m in matches {
                     visited.insert("\(m.gridPosition.q)_\(m.gridPosition.r)")
                 }
@@ -587,12 +853,45 @@ class GameScene: SKScene {
         }
         
         if hadMatches {
+            // 根据消除数量给予不同反馈
+            giveFeedbackForMatchCount(totalMatchCount)
+            
             run(SKAction.sequence([
                 SKAction.wait(forDuration: 0.4),
                 SKAction.run { [weak self] in self?.replenishSwords() }
             ]))
         } else {
             resetCombo()
+        }
+    }
+    
+    private func giveFeedbackForMatchCount(_ count: Int) {
+        let style: EffectsManager.FeedbackStyle
+        let text: String
+        
+        switch count {
+        case 3:
+            style = .normal
+            text = "不错"
+        case 4:
+            style = .good
+            text = "很好"
+        case 5:
+            style = .great
+            text = "太棒了"
+        case 6...7:
+            style = .excellent
+            text = "极好!"
+        case 8...10:
+            style = .perfect
+            text = "完美!!"
+        default:
+            style = .legendary
+            text = "传说!!!"
+        }
+        
+        if count >= 4 {
+            effectsManager.showFeedbackText(text, at: CGPoint(x: 0, y: 50), style: style)
         }
     }
     
@@ -625,62 +924,63 @@ class GameScene: SKScene {
         guard let first = swords.first else { return }
         let targetType = first.type
         let centerSword = swords[0]
+        let centerPos = hexToPixel(q: centerSword.gridPosition.q, r: centerSword.gridPosition.r)
         
         mergeCount += 1
         comboCount += 1
         resetComboTimer()
         
-        // Special effects based on type
+        // 合成爆发特效
+        effectsManager.playMergeBurst(at: centerPos, color: targetType.glowColor, count: swords.count * 4)
+        
+        // 特殊效果
         if targetType == .ling {
+            effectsManager.playChainWave(direction: .horizontal, at: centerPos)
             triggerLineClear(at: centerSword.gridPosition)
         } else if targetType == .xian {
+            effectsManager.playAreaClearExplosion(at: centerPos)
             triggerAreaClear(at: centerSword.gridPosition)
+        } else if targetType == .shen {
+            effectsManager.playDivineSwordEffect(at: centerPos)
         }
         
-        // Remove other swords with animation
+        // 移除其他剑
         for i in 1..<swords.count {
-            removeSword(swords[i], moveTo: centerSword.position)
+            removeSword(swords[i], moveTo: centerPos)
         }
         
-        // Upgrade center sword
+        // 升级中心剑
+        let oldType = centerSword.type
         centerSword.upgrade()
         
-        // Calculate score with combo bonus
+        // 升级光柱特效
+        if centerSword.type != oldType {
+            effectsManager.playUpgradeBeam(at: centerPos, toType: centerSword.type)
+        }
+        
+        // 计算分数
         let comboMultiplier = 1.0 + Double(comboCount - 1) * 0.2
-        let baseScore = targetType.baseScore
+        let baseScore = targetType.baseScore * swords.count
         let points = Int(Double(baseScore) * comboMultiplier)
         
         addScore(points)
-        addEnergy(targetType.energyGain)
+        addEnergy(targetType.energyGain * CGFloat(swords.count) / 3.0)
         
-        // Record to game state
+        // 分数飘字
+        effectsManager.playScorePopup(at: centerPos, score: points, isCombo: comboCount > 1)
+        
+        // 连击特效
+        if comboCount > 1 {
+            effectsManager.playComboEffect(combo: comboCount, at: centerPos)
+        }
+        
+        // 记录状态
         GameStateManager.shared.recordMerge(type: targetType, combo: comboCount)
         GameStateManager.shared.recordCultivation(points)
-        
-        // Show floating text
-        let mergeText = getMergeText(for: targetType)
-        showFloatingText(mergeText, at: centerSword.position, color: targetType.glowColor)
-        
-        // Show combo if > 1
-        if comboCount > 1 {
-            showComboLabel()
-        }
         
         playMergeSound(level: targetType)
         updateUI()
     }
-    
-    private func getMergeText(for type: SwordType) -> String {
-        switch type {
-        case .fan: return "三剑归一"
-        case .ling: return "剑气纵横！"
-        case .xian: return "一剑开天！"
-        case .shen: return "神剑出世！"
-        }
-    }
-
-    
-    // MARK: - Special Effects
     
     private func triggerLineClear(at pos: (q: Int, r: Int)) {
         let targets = grid.values.filter { $0.gridPosition.r == pos.r && $0.gridPosition != pos }
@@ -691,7 +991,6 @@ class GameScene: SKScene {
         }
         
         GameStateManager.shared.recordChainClear()
-        createChainEffect(direction: .horizontal)
     }
     
     private func triggerAreaClear(at pos: (q: Int, r: Int)) {
@@ -705,25 +1004,6 @@ class GameScene: SKScene {
         }
         
         GameStateManager.shared.recordChainClear()
-        createChainEffect(direction: .radial)
-    }
-    
-    private func createChainEffect(direction: ChainDirection) {
-        let effect = SKShapeNode(rectOf: direction == .horizontal ? CGSize(width: 400, height: 20) : CGSize(width: 200, height: 200))
-        effect.fillColor = SKColor(red: 0.2, green: 0.9, blue: 0.7, alpha: 0.6)
-        effect.strokeColor = .clear
-        effect.position = .zero
-        effect.zPosition = 50
-        effect.blendMode = .add
-        effectLayer.addChild(effect)
-        
-        let expand = SKAction.scale(to: 2.0, duration: 0.3)
-        let fade = SKAction.fadeOut(withDuration: 0.3)
-        effect.run(SKAction.sequence([SKAction.group([expand, fade]), SKAction.removeFromParent()]))
-    }
-    
-    enum ChainDirection {
-        case horizontal, vertical, radial
     }
     
     private func removeSword(_ sword: Sword, moveTo targetPos: CGPoint? = nil) {
@@ -733,57 +1013,26 @@ class GameScene: SKScene {
         }
         
         if let targetPos = targetPos {
-            let move = SKAction.move(to: targetPos, duration: 0.2)
-            let fade = SKAction.fadeOut(withDuration: 0.2)
-            sword.run(SKAction.sequence([SKAction.group([move, fade]), SKAction.removeFromParent()]))
+            sword.run(SKAction.sequence([
+                SKAction.group([
+                    SKAction.move(to: targetPos, duration: 0.2),
+                    SKAction.fadeOut(withDuration: 0.2)
+                ]),
+                SKAction.removeFromParent()
+            ]))
         } else {
-            let scale = SKAction.scale(to: 0.1, duration: 0.2)
-            let fade = SKAction.fadeOut(withDuration: 0.2)
-            sword.run(SKAction.sequence([SKAction.group([scale, fade]), SKAction.removeFromParent()]))
+            sword.run(SKAction.sequence([
+                SKAction.group([
+                    SKAction.scale(to: 0.1, duration: 0.2),
+                    SKAction.fadeOut(withDuration: 0.2)
+                ]),
+                SKAction.removeFromParent()
+            ]))
         }
     }
-    
-    private func showFloatingText(_ text: String, at position: CGPoint, color: UIColor) {
-        let label = SKLabelNode(text: "「\(text)」")
-        label.fontSize = 28
-        label.fontName = "PingFangSC-Heavy"
-        label.fontColor = color
-        label.position = position
-        label.zPosition = 150
-        label.setScale(0.5)
-        effectLayer.addChild(label)
-        
-        let scaleUp = SKAction.scale(to: 1.2, duration: 0.2)
-        let scaleDown = SKAction.scale(to: 1.0, duration: 0.1)
-        let moveUp = SKAction.moveBy(x: 0, y: 80, duration: 1.2)
-        let fade = SKAction.fadeOut(withDuration: 0.5)
-        
-        label.run(SKAction.sequence([
-            scaleUp, scaleDown,
-            SKAction.group([moveUp, SKAction.sequence([SKAction.wait(forDuration: 0.7), fade])]),
-            SKAction.removeFromParent()
-        ]))
-    }
+
     
     // MARK: - Combo System
-    
-    private func showComboLabel() {
-        comboLabel?.removeFromParent()
-        
-        let label = SKLabelNode(text: "\(comboCount)连击！")
-        label.fontSize = 36
-        label.fontName = "PingFangSC-Heavy"
-        label.fontColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0)
-        label.position = CGPoint(x: 0, y: size.height/2 - 180)
-        label.zPosition = 200
-        label.setScale(0.5)
-        uiLayer.addChild(label)
-        comboLabel = label
-        
-        let scaleUp = SKAction.scale(to: 1.3, duration: 0.15)
-        let scaleDown = SKAction.scale(to: 1.0, duration: 0.1)
-        label.run(SKAction.sequence([scaleUp, scaleDown]))
-    }
     
     private func resetComboTimer() {
         comboTimer?.invalidate()
@@ -796,11 +1045,6 @@ class GameScene: SKScene {
         comboTimer?.invalidate()
         comboTimer = nil
         comboCount = 0
-        comboLabel?.run(SKAction.sequence([
-            SKAction.fadeOut(withDuration: 0.3),
-            SKAction.removeFromParent()
-        ]))
-        comboLabel = nil
     }
     
     // MARK: - Ultimate Skill
@@ -810,24 +1054,12 @@ class GameScene: SKScene {
         updateUI()
         
         GameStateManager.shared.recordUltimate()
-        playUltimateSound()
         
-        // Screen flash
-        let flash = SKShapeNode(rectOf: size)
-        flash.fillColor = .white
-        flash.alpha = 0
-        flash.zPosition = 300
-        addChild(flash)
-        flash.run(SKAction.sequence([
-            SKAction.fadeAlpha(to: 0.9, duration: 0.1),
-            SKAction.fadeOut(withDuration: 0.5),
-            SKAction.removeFromParent()
-        ]))
+        // 史诗特效
+        effectsManager.playUltimateEffect()
+        effectsManager.playSlowMotion(duration: 0.5, slowFactor: 0.3)
         
-        // Flying swords rain effect
-        createSwordRainEffect()
-        
-        // Clear 70% of swords
+        // 清除70%的剑
         let allSwords = Array(grid.values)
         let countToRemove = Int(Double(allSwords.count) * GameConfig.ultimateClearPercent)
         let toRemove = allSwords.shuffled().prefix(countToRemove)
@@ -837,59 +1069,13 @@ class GameScene: SKScene {
             addScore(20)
         }
         
-        // Big floating text
-        let label = SKLabelNode(text: "万剑归宗！")
-        label.fontSize = 60
-        label.fontName = "PingFangSC-Heavy"
-        label.fontColor = SKColor(red: 1.0, green: 0.2, blue: 0.2, alpha: 1.0)
-        label.position = .zero
-        label.zPosition = 350
-        label.setScale(0.1)
-        addChild(label)
+        playUltimateSound()
         
-        label.run(SKAction.sequence([
-            SKAction.scale(to: 1.2, duration: 0.3),
-            SKAction.wait(forDuration: 0.5),
-            SKAction.fadeOut(withDuration: 0.5),
-            SKAction.removeFromParent()
-        ]))
-        
-        // Replenish after animation
+        // 延迟补充
         run(SKAction.sequence([
-            SKAction.wait(forDuration: 1.5),
+            SKAction.wait(forDuration: 2.0),
             SKAction.run { [weak self] in self?.replenishSwords(fillAll: true) }
         ]))
-    }
-    
-    private func createSwordRainEffect() {
-        for i in 0..<30 {
-            let sword = SKShapeNode(rectOf: CGSize(width: 6, height: 30))
-            sword.fillColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0)
-            sword.strokeColor = .clear
-            sword.position = CGPoint(
-                x: CGFloat.random(in: -size.width/2...size.width/2),
-                y: size.height/2 + 50
-            )
-            sword.zPosition = 280
-            sword.zRotation = .pi
-            effectLayer.addChild(sword)
-            
-            let delay = Double(i) * 0.03
-            let duration = 0.6 + Double.random(in: 0...0.3)
-            let endY = -size.height/2 - 50
-            
-            sword.run(SKAction.sequence([
-                SKAction.wait(forDuration: delay),
-                SKAction.group([
-                    SKAction.moveTo(y: endY, duration: duration),
-                    SKAction.sequence([
-                        SKAction.wait(forDuration: duration * 0.7),
-                        SKAction.fadeOut(withDuration: duration * 0.3)
-                    ])
-                ]),
-                SKAction.removeFromParent()
-            ]))
-        }
     }
     
     // MARK: - Score & Energy
@@ -899,11 +1085,18 @@ class GameScene: SKScene {
     }
     
     private func addEnergy(_ value: CGFloat) {
+        let oldEnergy = energy
         energy = min(energy + value, GameConfig.maxEnergy)
+        
+        // 能量满时开始脉冲
+        if energy >= GameConfig.maxEnergy && oldEnergy < GameConfig.maxEnergy {
+            effectsManager.startEnergyFullPulse(around: ultimateButton)
+            effectsManager.showFeedbackText("剑意已满!", at: CGPoint(x: 0, y: -100), style: .perfect)
+        }
     }
     
     private func updateUI() {
-        // Score with animation
+        // Score animation
         let oldText = scoreLabel.text ?? "0"
         scoreLabel.text = "\(score)"
         if scoreLabel.text != oldText {
@@ -916,6 +1109,11 @@ class GameScene: SKScene {
         // Merge count
         if let mergeLabel = uiLayer.childNode(withName: "//mergeLabel") as? SKLabelNode {
             mergeLabel.text = "\(mergeCount)/\(currentLevel.targetMerges)"
+            
+            // 接近目标时变色
+            if mergeCount >= currentLevel.targetMerges {
+                mergeLabel.fontColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0)
+            }
         }
         
         // Energy bar
@@ -927,7 +1125,7 @@ class GameScene: SKScene {
                              cornerWidth: 6, cornerHeight: 6, transform: nil)
         energyBarFill.path = newPath
         
-        // Ultimate button visibility
+        // Ultimate button
         if energy >= GameConfig.maxEnergy {
             ultimateButton.isHidden = false
             if let hint = uiLayer.childNode(withName: "ultimateHint") as? SKLabelNode {
@@ -935,7 +1133,6 @@ class GameScene: SKScene {
                 hint.fontColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0)
             }
             
-            // Pulse animation
             if ultimateButton.action(forKey: "pulse") == nil {
                 let pulse = SKAction.sequence([
                     SKAction.scale(to: 1.1, duration: 0.4),
@@ -946,6 +1143,7 @@ class GameScene: SKScene {
         } else {
             ultimateButton.isHidden = true
             ultimateButton.removeAction(forKey: "pulse")
+            effectsManager.stopEnergyFullPulse(on: ultimateButton)
             if let hint = uiLayer.childNode(withName: "ultimateHint") as? SKLabelNode {
                 hint.text = "积蓄剑意中..."
                 hint.fontColor = SKColor(white: 0.5, alpha: 1.0)
@@ -954,7 +1152,6 @@ class GameScene: SKScene {
         
         checkLevelCompletion()
     }
-
     
     // MARK: - Level Completion
     
@@ -966,9 +1163,27 @@ class GameScene: SKScene {
     
     private func triggerLevelComplete() {
         if childNode(withName: "levelCompleteOverlay") != nil { return }
+        isGameOver = true
+        gameTimer?.invalidate()
+        removeAction(forKey: "autoShuffle")
         
         let stars = currentLevel.calculateStars(score: score)
         
+        // 庆祝特效
+        effectsManager.playLevelCompleteEffect(stars: stars)
+        
+        // 延迟显示结算界面
+        run(SKAction.sequence([
+            SKAction.wait(forDuration: 1.5),
+            SKAction.run { [weak self] in
+                self?.showLevelCompleteUI(stars: stars)
+            }
+        ]))
+        
+        LevelConfig.shared.completeLevel(stars: stars)
+    }
+    
+    private func showLevelCompleteUI(stars: Int) {
         let overlay = SKShapeNode(rectOf: size)
         overlay.fillColor = SKColor(white: 0, alpha: 0.9)
         overlay.zPosition = 400
@@ -977,7 +1192,6 @@ class GameScene: SKScene {
         addChild(overlay)
         overlay.run(SKAction.fadeIn(withDuration: 0.3))
         
-        // Title
         let titleLabel = SKLabelNode(text: "⚔️ 关卡完成 ⚔️")
         titleLabel.fontSize = 40
         titleLabel.fontName = "PingFangSC-Heavy"
@@ -990,20 +1204,9 @@ class GameScene: SKScene {
             let star = SKLabelNode(text: i < stars ? "⭐️" : "☆")
             star.fontSize = 50
             star.position = CGPoint(x: CGFloat(i - 1) * 70, y: 50)
-            star.alpha = 0
             overlay.addChild(star)
-            
-            star.run(SKAction.sequence([
-                SKAction.wait(forDuration: 0.3 + Double(i) * 0.2),
-                SKAction.group([
-                    SKAction.fadeIn(withDuration: 0.2),
-                    SKAction.scale(to: 1.2, duration: 0.2)
-                ]),
-                SKAction.scale(to: 1.0, duration: 0.1)
-            ]))
         }
         
-        // Score info
         let scoreInfo = SKLabelNode(text: "修为: \(score) / \(currentLevel.targetScore)")
         scoreInfo.fontSize = 22
         scoreInfo.fontName = "PingFangSC-Regular"
@@ -1011,11 +1214,17 @@ class GameScene: SKScene {
         scoreInfo.position = CGPoint(x: 0, y: -20)
         overlay.addChild(scoreInfo)
         
-        // Buttons
         if LevelConfig.shared.currentLevelIndex < LevelConfig.shared.levels.count - 1 {
             let nextBtn = createButton(text: "下一关 ➡️", position: CGPoint(x: 0, y: -100))
             nextBtn.name = "nextLevelBtn"
             overlay.addChild(nextBtn)
+        } else {
+            let completeLabel = SKLabelNode(text: "🎉 所有关卡已完成 🎉")
+            completeLabel.fontSize = 28
+            completeLabel.fontName = "PingFangSC-Bold"
+            completeLabel.fontColor = .green
+            completeLabel.position = CGPoint(x: 0, y: -100)
+            overlay.addChild(completeLabel)
         }
         
         let restartBtn = createButton(text: "重新挑战", position: CGPoint(x: 0, y: -160))
@@ -1023,13 +1232,28 @@ class GameScene: SKScene {
         restartBtn.fontColor = .lightGray
         restartBtn.fontSize = 24
         overlay.addChild(restartBtn)
-        
-        LevelConfig.shared.completeLevel(stars: stars)
     }
     
     // MARK: - Game Over
     
     private func triggerGameOver() {
+        if isGameOver { return }
+        isGameOver = true
+        gameTimer?.invalidate()
+        removeAction(forKey: "autoShuffle")
+        
+        effectsManager.flashScreen(color: .red, duration: 0.5)
+        effectsManager.shakeScreen(intensity: .large)
+        
+        run(SKAction.sequence([
+            SKAction.wait(forDuration: 0.5),
+            SKAction.run { [weak self] in
+                self?.showGameOverUI()
+            }
+        ]))
+    }
+    
+    private func showGameOverUI() {
         let overlay = SKShapeNode(rectOf: size)
         overlay.fillColor = SKColor(white: 0, alpha: 0.85)
         overlay.zPosition = 400
@@ -1116,16 +1340,6 @@ class GameScene: SKScene {
         skipBtn.name = "skipTutorial"
         panel.addChild(skipBtn)
         
-        // Progress dots
-        for i in 0..<messages.count {
-            let dot = SKShapeNode(circleOfRadius: 4)
-            dot.fillColor = i <= tutorialStep ? SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0) : SKColor(white: 0.3, alpha: 1.0)
-            dot.strokeColor = .clear
-            dot.position = CGPoint(x: CGFloat(i - messages.count/2) * 15, y: -size.height/2 + 130)
-            overlay.addChild(dot)
-        }
-        
-        // Auto advance
         run(SKAction.sequence([
             SKAction.wait(forDuration: 4.0),
             SKAction.run { [weak self] in
@@ -1147,20 +1361,33 @@ class GameScene: SKScene {
     private func restartGame() {
         grid.values.forEach { $0.removeFromParent() }
         grid.removeAll()
+        blockedCells.removeAll()
         
         score = 0
         energy = 0
         mergeCount = 0
         comboCount = 0
+        moveCount = 0
+        isGameOver = false
+        
+        gameTimer?.invalidate()
+        removeAction(forKey: "autoShuffle")
         
         children.filter { $0.zPosition == 400 }.forEach { $0.removeFromParent() }
+        gridLayer.removeAllChildren()
         
         currentLevel = LevelConfig.shared.getCurrentLevel()
-        levelLabel.text = "第\(currentLevel.id)关 - \(currentLevel.name)"
-        goalLabel.text = "目标: \(currentLevel.targetScore)分"
+        timeRemaining = currentLevel.rules.timeLimit ?? 0
         
+        levelLabel.text = "第\(currentLevel.id)关 - \(currentLevel.name)"
+        goalLabel.text = "目标: \(currentLevel.targetScore)分 | \(currentLevel.targetMerges)次合成"
+        
+        createGrid()
+        setupLevelRules()
         updateUI()
         spawnInitialSwords()
+        
+        effectsManager.playLevelStartEffect(levelName: currentLevel.name)
     }
     
     private func goToNextLevel() {
@@ -1183,7 +1410,7 @@ class GameScene: SKScene {
             if visited.contains(key) { continue }
             
             let matches = findMatches(startNode: sword)
-            if matches.count >= 3 { return true }
+            if matches.count >= currentLevel.rules.minMergeCount { return true }
             
             for m in matches {
                 visited.insert("\(m.gridPosition.q)_\(m.gridPosition.r)")
@@ -1194,7 +1421,7 @@ class GameScene: SKScene {
     
     private func fixBoardState() {
         let allSwords = Array(grid.values)
-        if allSwords.count < 3 { return }
+        if allSwords.count < currentLevel.rules.minMergeCount { return }
         
         var typeCounts: [SwordType: Int] = [:]
         for sword in allSwords {
@@ -1202,7 +1429,7 @@ class GameScene: SKScene {
         }
         
         let mostCommonType = typeCounts.max(by: { $0.value < $1.value })?.key ?? .fan
-        var needToChange = max(0, 3 - (typeCounts[mostCommonType] ?? 0))
+        var needToChange = max(0, currentLevel.rules.minMergeCount - (typeCounts[mostCommonType] ?? 0))
         
         for sword in allSwords.shuffled() {
             if needToChange <= 0 { break }
@@ -1217,6 +1444,8 @@ class GameScene: SKScene {
                 needToChange -= 1
             }
         }
+        
+        effectsManager.showFeedbackText("剑阵调整", at: .zero, style: .normal)
     }
     
     // MARK: - Sound & Haptics
