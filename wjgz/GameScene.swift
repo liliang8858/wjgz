@@ -1708,6 +1708,9 @@ class GameScene: SKScene {
         gameTimer?.invalidate()
         removeAction(forKey: "autoShuffle")
         
+        // 清理关卡完成特效
+        effectsManager.clearLevelCompleteEffects()
+        
         children.filter { $0.zPosition == 400 }.forEach { $0.removeFromParent() }
         gridLayer.removeAllChildren()
         

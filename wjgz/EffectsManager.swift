@@ -1013,6 +1013,7 @@ class EffectsManager {
             particle.lineWidth = 1
             particle.position = CGPoint(x: 0, y: -50)
             particle.zPosition = 450
+            particle.name = "levelCompleteParticle"
             layer.addChild(particle)
             
             let angle = CGFloat.random(in: 0...(2 * .pi))
@@ -1034,13 +1035,14 @@ class EffectsManager {
             ]))
         }
         
-        // 星星动画
+        // 星星动画 - 添加自动移除
         for i in 0..<stars {
             let star = SKLabelNode(text: "⭐️")
             star.fontSize = 60
             star.position = CGPoint(x: CGFloat(i - 1) * 80, y: 100)
             star.zPosition = 460
             star.setScale(0)
+            star.name = "levelCompleteStar"
             layer.addChild(star)
             
             star.run(SKAction.sequence([
@@ -1049,7 +1051,11 @@ class EffectsManager {
                     SKAction.scale(to: 1.3, duration: 0.2),
                     SKAction.fadeIn(withDuration: 0.2)
                 ]),
-                SKAction.scale(to: 1.0, duration: 0.1)
+                SKAction.scale(to: 1.0, duration: 0.1),
+                // 保持显示一段时间后淡出
+                SKAction.wait(forDuration: 1.5),
+                SKAction.fadeOut(withDuration: 0.5),
+                SKAction.removeFromParent()
             ]))
             
             // 每颗星星的音效
@@ -1059,5 +1065,12 @@ class EffectsManager {
         }
         
         shakeScreen(intensity: .large)
+    }
+    
+    /// 清理关卡完成特效
+    func clearLevelCompleteEffects() {
+        effectLayer?.children.filter { 
+            $0.name == "levelCompleteStar" || $0.name == "levelCompleteParticle" 
+        }.forEach { $0.removeFromParent() }
     }
 }
