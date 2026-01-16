@@ -27,7 +27,7 @@ enum FormationType: String, CaseIterable {
 }
 
 // MARK: - Special Rules (特殊规则)
-struct LevelRules: Codable {
+struct LevelRules {
     var allowDiagonalMerge: Bool = true      // 允许斜向合成
     var minMergeCount: Int = 3               // 最少合成数量
     var hasBlockedCells: Bool = false        // 是否有封锁格子
@@ -41,7 +41,7 @@ struct LevelRules: Codable {
     var shuffleInterval: TimeInterval? = nil // 自动洗牌间隔
 }
 
-enum GravityDirection: String, Codable {
+enum GravityDirection: String {
     case none = "无"
     case down = "下"
     case up = "上"

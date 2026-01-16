@@ -3,7 +3,7 @@ import CoreGraphics
 import UIKit
 
 // MARK: - Sword Types (4 levels like demo)
-enum SwordType: Int, CaseIterable {
+enum SwordType: Int, CaseIterable, Codable {
     case fan = 1    // 凡剑 - Mortal (Base)
     case ling = 2   // 灵剑 - Spirit (Directional clear)
     case xian = 3   // 仙剑 - Immortal (Area clear)
@@ -88,7 +88,7 @@ struct Achievement: Codable {
 struct SwordData: Codable {
     let id: String
     let name: String
-    let type: String
+    let type: String  // 改为 String 类型
     let description: String
     var unlocked: Bool
 }
