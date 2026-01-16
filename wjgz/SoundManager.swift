@@ -17,27 +17,39 @@ class SoundManager {
     private var audioEngine: AVAudioEngine?
     private var players: [String: AVAudioPlayerNode] = [:]
     private var isEnabled: Bool = true
+    private var audioSessionConfigured: Bool = false
     
     // 音效强度
     private let masterVolume: Float = 0.6
     
     private init() {
+        // 暂时在所有环境下禁用音频，避免崩溃
+        print("SoundManager: Audio system disabled for stability")
+        isEnabled = false
+        
+        // 如果需要启用音频，取消下面的注释
+        /*
         #if targetEnvironment(simulator)
-        // 在模拟器上禁用音频以避免崩溃
         print("SoundManager: Running on simulator, audio disabled")
         isEnabled = false
         #else
         setupAudioSession()
         #endif
+        */
     }
     
     private func setupAudioSession() {
         #if os(iOS)
+        guard !audioSessionConfigured else { return }
+        
         do {
-            try AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default, options: [.mixWithOthers])
-            try AVAudioSession.sharedInstance().setActive(true)
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
+            try session.setActive(true)
+            audioSessionConfigured = true
+            print("SoundManager: Audio session configured successfully")
         } catch {
-            print("Failed to setup audio session: \(error)")
+            print("SoundManager: Failed to setup audio session: \(error)")
             isEnabled = false
         }
         #endif
@@ -48,6 +60,7 @@ class SoundManager {
         
         if audioEngine == nil {
             audioEngine = AVAudioEngine()
+            print("SoundManager: Audio engine created")
         }
         
         return audioEngine
@@ -55,6 +68,9 @@ class SoundManager {
     
     func setEnabled(_ enabled: Bool) {
         isEnabled = enabled
+        if enabled && !audioSessionConfigured {
+            setupAudioSession()
+        }
     }
     
     // MARK: - 基础音效
@@ -373,15 +389,30 @@ class SoundManager {
         guard isEnabled else { return }
         guard let engine = getOrCreateEngine() else { return }
         
+        // 添加安全检查
+        guard duration > 0 && duration < 10 else {
+            print("SoundManager: Invalid duration: \(duration)")
+            return
+        }
+        
         let sampleRate = 44100.0
         let frameCount = AVAudioFrameCount(sampleRate * duration)
         
-        guard let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1) else { return }
-        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else { return }
+        guard let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1) else {
+            print("SoundManager: Failed to create audio format")
+            return
+        }
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else {
+            print("SoundManager: Failed to create audio buffer")
+            return
+        }
         
         buffer.frameLength = frameCount
         
-        guard let channelData = buffer.floatChannelData else { return }
+        guard let channelData = buffer.floatChannelData else {
+            print("SoundManager: Failed to get channel data")
+            return
+        }
         let data = channelData[0]
         
         let angularFrequency = 2.0 * .pi * frequency / sampleRate
@@ -408,7 +439,9 @@ class SoundManager {
             }
             
             player.scheduleBuffer(buffer) { [weak engine] in
-                engine?.detach(player)
+                DispatchQueue.main.async {
+                    engine?.detach(player)
+                }
             }
             
             player.play()
