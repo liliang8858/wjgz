@@ -242,6 +242,32 @@ class GameScene: SKScene {
             topColor = SKColor(red: 0.7, green: 0.4, blue: 1.0, alpha: 0.15)
             leftColor = SKColor(red: 1.0, green: 0.4, blue: 0.6, alpha: 0.1)
             rightColor = SKColor(red: 0.3, green: 0.8, blue: 0.9, alpha: 0.1)
+        // 八卦阵型 - 阴阳配色
+        case .qian, .li, .zhen, .dui:  // 阳卦
+            topColor = SKColor(red: 1.0, green: 0.9, blue: 0.7, alpha: 0.15)
+            leftColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 0.1)
+            rightColor = SKColor(red: 1.0, green: 0.6, blue: 0.2, alpha: 0.1)
+        case .kun, .kan, .gen, .xun:  // 阴卦
+            topColor = SKColor(red: 0.3, green: 0.3, blue: 0.5, alpha: 0.15)
+            leftColor = SKColor(red: 0.2, green: 0.4, blue: 0.6, alpha: 0.1)
+            rightColor = SKColor(red: 0.4, green: 0.2, blue: 0.6, alpha: 0.1)
+        // 高级阵型
+        case .bagua:
+            topColor = SKColor(red: 0.8, green: 0.6, blue: 1.0, alpha: 0.15)
+            leftColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 0.1)
+            rightColor = SKColor(red: 0.2, green: 0.2, blue: 0.4, alpha: 0.1)
+        case .wuxing:
+            topColor = SKColor(red: 0.2, green: 0.8, blue: 0.4, alpha: 0.15)
+            leftColor = SKColor(red: 1.0, green: 0.3, blue: 0.2, alpha: 0.1)
+            rightColor = SKColor(red: 0.3, green: 0.5, blue: 1.0, alpha: 0.1)
+        case .jiugong:
+            topColor = SKColor(red: 0.9, green: 0.7, blue: 0.3, alpha: 0.15)
+            leftColor = SKColor(red: 0.8, green: 0.4, blue: 0.2, alpha: 0.1)
+            rightColor = SKColor(red: 0.6, green: 0.3, blue: 0.1, alpha: 0.1)
+        case .tiangang:
+            topColor = SKColor(red: 0.1, green: 0.2, blue: 0.4, alpha: 0.15)
+            leftColor = SKColor(red: 0.3, green: 0.5, blue: 0.9, alpha: 0.1)
+            rightColor = SKColor(red: 0.5, green: 0.3, blue: 0.8, alpha: 0.1)
         }
         
         let topGlow = SKShapeNode(circleOfRadius: gradientSize * 0.4)
@@ -305,6 +331,32 @@ class GameScene: SKScene {
             return true // 全部显示，但有特殊重力
         case .random:
             return Double.random(in: 0...1) > 0.2
+        // 八卦阵型
+        case .qian:  // 乾 - 三阳爻，全满
+            return true
+        case .kun:  // 坤 - 三阴爻，中空
+            return distance >= 1
+        case .zhen:  // 震 - 下阳上阴
+            return r <= 0 || distance <= 1
+        case .xun:  // 巽 - 下阴上阳
+            return r >= 0 || distance <= 1
+        case .kan:  // 坎 - 中阳外阴
+            return distance == 1 || distance == 0
+        case .li:  // 离 - 中阴外阳
+            return distance != 1
+        case .gen:  // 艮 - 上阳下阴
+            return q >= 0 || distance <= 1
+        case .dui:  // 兑 - 上阴下阳
+            return q <= 0 || distance <= 1
+        // 高级阵型
+        case .bagua:  // 八卦 - 八方位
+            return true
+        case .wuxing:  // 五行 - 五方位
+            return distance <= 1 || q == 0 || r == 0 || s == 0
+        case .jiugong:  // 九宫 - 九个位置
+            return distance <= 1 || (abs(q) == radius && abs(r) <= 1) || (abs(r) == radius && abs(q) <= 1)
+        case .tiangang:  // 天罡 - 大型阵
+            return true
         }
     }
     
