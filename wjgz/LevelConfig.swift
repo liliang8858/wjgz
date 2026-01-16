@@ -297,6 +297,10 @@ class LevelConfig {
     
     private func loadProgress() {
         currentLevelIndex = UserDefaults.standard.integer(forKey: "currentLevel")
+        // 确保从第一关开始
+        if currentLevelIndex == 0 {
+            currentLevelIndex = 0
+        }
     }
     
     func resetProgress() {

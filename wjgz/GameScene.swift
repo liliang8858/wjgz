@@ -62,6 +62,10 @@ class GameScene: SKScene {
     
     override func didMove(to view: SKView) {
         backgroundColor = SKColor(red: 0.08, green: 0.08, blue: 0.15, alpha: 1.0)
+        
+        // 如果需要重置进度，取消下面的注释
+        // LevelConfig.shared.resetProgress()
+        
         currentLevel = LevelConfig.shared.getCurrentLevel()
         
         setupLayers()
@@ -1172,18 +1176,22 @@ class GameScene: SKScene {
         // 庆祝特效
         effectsManager.playLevelCompleteEffect(stars: stars)
         
+        // 先保存当前关卡索引
+        let currentLevelIdx = LevelConfig.shared.currentLevelIndex
+        
         // 延迟显示结算界面
         run(SKAction.sequence([
             SKAction.wait(forDuration: 1.5),
             SKAction.run { [weak self] in
-                self?.showLevelCompleteUI(stars: stars)
+                self?.showLevelCompleteUI(stars: stars, currentLevelIdx: currentLevelIdx)
             }
         ]))
         
+        // 完成关卡（这会更新索引）
         LevelConfig.shared.completeLevel(stars: stars)
     }
     
-    private func showLevelCompleteUI(stars: Int) {
+    private func showLevelCompleteUI(stars: Int, currentLevelIdx: Int) {
         let overlay = SKShapeNode(rectOf: size)
         overlay.fillColor = SKColor(white: 0, alpha: 0.9)
         overlay.zPosition = 400
@@ -1214,7 +1222,8 @@ class GameScene: SKScene {
         scoreInfo.position = CGPoint(x: 0, y: -20)
         overlay.addChild(scoreInfo)
         
-        if LevelConfig.shared.currentLevelIndex < LevelConfig.shared.levels.count - 1 {
+        // 使用保存的索引来判断
+        if currentLevelIdx < LevelConfig.shared.levels.count - 1 {
             let nextBtn = createButton(text: "下一关 ➡️", position: CGPoint(x: 0, y: -100))
             nextBtn.name = "nextLevelBtn"
             overlay.addChild(nextBtn)
