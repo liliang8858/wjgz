@@ -703,7 +703,6 @@ class GameScene: SKScene {
                 sword.zPosition = 100
                 sword.run(SKAction.scale(to: 1.2, duration: 0.1))
                 effectsManager.playSelectPulse(on: sword)
-                playClickSound()
                 break
             }
         }
@@ -897,6 +896,9 @@ class GameScene: SKScene {
         if count >= 4 {
             effectsManager.showFeedbackText(text, at: CGPoint(x: 0, y: 50), style: style)
         }
+        
+        // 音效反馈
+        SoundManager.shared.playFeedback(for: count)
     }
     
     private func findMatches(startNode: Sword) -> [Sword] {
@@ -935,7 +937,7 @@ class GameScene: SKScene {
         resetComboTimer()
         
         // 合成爆发特效
-        effectsManager.playMergeBurst(at: centerPos, color: targetType.glowColor, count: swords.count * 4)
+        effectsManager.playMergeBurst(at: centerPos, color: targetType.glowColor, count: swords.count * 4, swordType: targetType)
         
         // 特殊效果
         if targetType == .ling {
@@ -982,7 +984,6 @@ class GameScene: SKScene {
         GameStateManager.shared.recordMerge(type: targetType, combo: comboCount)
         GameStateManager.shared.recordCultivation(points)
         
-        playMergeSound(level: targetType)
         updateUI()
     }
     
@@ -1096,6 +1097,7 @@ class GameScene: SKScene {
         if energy >= GameConfig.maxEnergy && oldEnergy < GameConfig.maxEnergy {
             effectsManager.startEnergyFullPulse(around: ultimateButton)
             effectsManager.showFeedbackText("剑意已满!", at: CGPoint(x: 0, y: -100), style: .perfect)
+            SoundManager.shared.playEnergyFull()
         }
     }
     
@@ -1267,6 +1269,9 @@ class GameScene: SKScene {
         overlay.fillColor = SKColor(white: 0, alpha: 0.85)
         overlay.zPosition = 400
         addChild(overlay)
+        
+        // 音效
+        SoundManager.shared.playGameOver()
         
         let label = SKLabelNode(text: "剑道未成")
         label.fontSize = 45
@@ -1455,27 +1460,6 @@ class GameScene: SKScene {
         }
         
         effectsManager.showFeedbackText("剑阵调整", at: .zero, style: .normal)
-    }
-    
-    // MARK: - Sound & Haptics
-    
-    private func playClickSound() {
-        AudioServicesPlaySystemSound(1104)
-        let generator = UIImpactFeedbackGenerator(style: .light)
-        generator.impactOccurred()
-    }
-    
-    private func playMergeSound(level: SwordType) {
-        AudioServicesPlaySystemSound(1103)
-        let style: UIImpactFeedbackGenerator.FeedbackStyle = level.rawValue >= 3 ? .heavy : .medium
-        let generator = UIImpactFeedbackGenerator(style: style)
-        generator.impactOccurred()
-    }
-    
-    private func playUltimateSound() {
-        AudioServicesPlaySystemSound(1520)
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(.success)
     }
     
     // MARK: - Helpers

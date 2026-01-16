@@ -60,9 +60,8 @@ class EffectsManager {
             SKAction.removeFromParent()
         ]))
         
-        // 触觉反馈
-        let generator = UIImpactFeedbackGenerator(style: .light)
-        generator.impactOccurred()
+        // 音效
+        SoundManager.shared.playTap()
     }
     
     /// 选中光环脉冲
@@ -86,6 +85,9 @@ class EffectsManager {
             SKAction.group([scaleUp, fadeIn]),
             SKAction.group([scaleDown, fadeOut])
         ])))
+        
+        // 音效
+        SoundManager.shared.playSelect()
     }
     
     /// 拖拽轨迹
@@ -105,12 +107,15 @@ class EffectsManager {
             SKAction.group([fade, shrink]),
             SKAction.removeFromParent()
         ]))
+        
+        // 音效
+        SoundManager.shared.playDrag()
     }
     
     // MARK: - Small Effects (小特效)
     
     /// 合成爆发粒子
-    func playMergeBurst(at position: CGPoint, color: UIColor, count: Int = 12) {
+    func playMergeBurst(at position: CGPoint, color: UIColor, count: Int = 12, swordType: SwordType? = nil) {
         guard let layer = effectLayer else { return }
         
         for i in 0..<count {
@@ -155,9 +160,19 @@ class EffectsManager {
             SKAction.removeFromParent()
         ]))
         
-        // 触觉
-        let generator = UIImpactFeedbackGenerator(style: .medium)
-        generator.impactOccurred()
+        // 音效
+        if let type = swordType {
+            switch type {
+            case .fan:
+                SoundManager.shared.playMergeFan()
+            case .ling:
+                SoundManager.shared.playMergeLing()
+            case .xian:
+                SoundManager.shared.playMergeXian()
+            case .shen:
+                SoundManager.shared.playMergeShen()
+            }
+        }
     }
     
     /// 分数飘字
@@ -239,14 +254,8 @@ class EffectsManager {
             ]))
         }
         
-        // 强触觉
-        let generator = UIImpactFeedbackGenerator(style: .heavy)
-        generator.impactOccurred()
-        
-        if combo >= 5 {
-            // 额外震动
-            AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
-        }
+        // 音效
+        SoundManager.shared.playCombo(combo)
     }
     
     /// 升级光柱
@@ -287,6 +296,9 @@ class EffectsManager {
             SKAction.fadeOut(withDuration: 0.3),
             SKAction.removeFromParent()
         ]))
+        
+        // 音效
+        SoundManager.shared.playLevelUp()
     }
 
     
@@ -380,9 +392,8 @@ class EffectsManager {
         // 屏幕震动
         shakeScreen(intensity: .medium)
         
-        // 触觉
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(.success)
+        // 音效
+        SoundManager.shared.playChainClear()
     }
     
     enum ChainWaveDirection {
@@ -449,6 +460,9 @@ class EffectsManager {
         }
         
         shakeScreen(intensity: .large)
+        
+        // 音效
+        SoundManager.shared.playExplosion()
     }
     
     private func createHexShard() -> SKNode {
@@ -478,6 +492,9 @@ class EffectsManager {
     /// 万剑归宗特效
     func playUltimateEffect() {
         guard let layer = effectLayer, let scene = scene else { return }
+        
+        // 音效先行
+        SoundManager.shared.playUltimate()
         
         // 1. 全屏闪白
         let flash = SKShapeNode(rectOf: scene.size)
@@ -563,17 +580,6 @@ class EffectsManager {
         
         // 5. 持续震动
         shakeScreen(intensity: .epic, duration: 2.0)
-        
-        // 6. 触觉反馈
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(.success)
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
-        }
     }
     
     private func createFlyingSword() -> SKNode {
@@ -599,6 +605,9 @@ class EffectsManager {
     /// 神剑出世特效
     func playDivineSwordEffect(at position: CGPoint) {
         guard let layer = effectLayer, let scene = scene else { return }
+        
+        // 音效
+        SoundManager.shared.playMergeShen()
         
         // 1. 天降神光
         let lightBeam = SKShapeNode(rectOf: CGSize(width: 60, height: scene.size.height * 2))
@@ -992,6 +1001,9 @@ class EffectsManager {
     func playLevelCompleteEffect(stars: Int) {
         guard let layer = effectLayer, let scene = scene else { return }
         
+        // 音效
+        SoundManager.shared.playLevelComplete()
+        
         // 彩色粒子爆发
         for _ in 0..<50 {
             let colors: [UIColor] = [ParticleColors.gold, ParticleColors.jade, ParticleColors.purple, ParticleColors.red]
@@ -1039,11 +1051,13 @@ class EffectsManager {
                 ]),
                 SKAction.scale(to: 1.0, duration: 0.1)
             ]))
+            
+            // 每颗星星的音效
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5 + Double(i) * 0.3) {
+                SoundManager.shared.playStar()
+            }
         }
         
         shakeScreen(intensity: .large)
-        
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(.success)
     }
 }
