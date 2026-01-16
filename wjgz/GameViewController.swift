@@ -14,6 +14,9 @@ class GameViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        // 🎵 测试音效文件
+        AudioTestHelper.quickTest()
+        
         if let view = self.view as! SKView? {
             // Create the scene programmatically
             let scene = GameScene(size: view.bounds.size)

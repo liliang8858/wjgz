@@ -84,6 +84,9 @@ class GameScene: SKScene {
         setupUI()
         setupLevelRules()
         
+        // 🎵 初始化音效系统
+        setupAudio()
+        
         // 开始背景粒子
         effectsManager.startBackgroundParticles()
         
@@ -93,6 +96,20 @@ class GameScene: SKScene {
         if !GameStateManager.shared.tutorialCompleted {
             showTutorial()
         }
+    }
+    
+    // MARK: - Audio Setup
+    
+    /// 初始化音效系统
+    private func setupAudio() {
+        // 设置音量
+        SoundManager.shared.setMusicVolume(0.15)  // 背景音乐 15% (降低音量)
+        SoundManager.shared.setSFXVolume(0.7)     // 音效 70%
+        
+        // 播放背景音乐
+        SoundManager.shared.playBackgroundMusic("background_main")
+        
+        print("🎵 音效系统已初始化")
     }
     
     // MARK: - Setup
