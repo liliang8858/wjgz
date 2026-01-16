@@ -103,11 +103,11 @@ class GameScene: SKScene {
     /// 初始化音效系统
     private func setupAudio() {
         // 设置音量
-        SoundManager.shared.setMusicVolume(0.15)  // 背景音乐 15% (降低音量)
+        SoundManager.shared.setMusicVolume(0.05)  // 背景音乐 5%
         SoundManager.shared.setSFXVolume(0.7)     // 音效 70%
         
-        // 播放背景音乐
-        SoundManager.shared.playBackgroundMusic("background_main")
+        // 播放背景音乐 (已关闭)
+        // SoundManager.shared.playBackgroundMusic("background_main")
         
         print("🎵 音效系统已初始化")
     }

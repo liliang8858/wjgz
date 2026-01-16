@@ -117,6 +117,24 @@ class SoundManager {
         }
     }
     
+    /// 播放合成音效（音量较低）
+    private func playMergeSoundEffect(_ name: String, fallbackSystemSound: SystemSoundID? = nil) {
+        guard isEnabled else { return }
+        
+        // 尝试播放自定义音效
+        if let player = getAvailablePlayer(for: name) {
+            player.currentTime = 0
+            player.volume = sfxVolume * 0.3  // 合成音效降低到 30%
+            player.play()
+            return
+        }
+        
+        // 如果没有自定义音效，使用系统音效
+        if let systemSound = fallbackSystemSound {
+            AudioServicesPlaySystemSound(systemSound)
+        }
+    }
+    
     /// 获取可用的播放器（支持同时播放多个相同音效）
     private func getAvailablePlayer(for soundName: String) -> AVAudioPlayer? {
         // 如果还没有这个音效的播放器池，创建它
@@ -290,37 +308,30 @@ class SoundManager {
     
     // MARK: - 合成音效
     
+    /// 通用合成音效（已关闭）
+    func playMerge() {
+        // 合成音效已关闭，只保留震动反馈
+        vibrate(.light)
+    }
+    
     /// 凡剑合成
     func playMergeFan() {
-        playSoundEffect("merge_small", fallbackSystemSound: tapSoundID)
-        vibrate(.medium)
+        playMerge()
     }
     
     /// 灵剑合成
     func playMergeLing() {
-        playSoundEffect("merge_medium", fallbackSystemSound: selectSoundID)
-        vibrate(.medium)
+        playMerge()
     }
     
     /// 仙剑合成
     func playMergeXian() {
-        playSoundEffect("merge_large", fallbackSystemSound: successSoundID)
-        vibrate(.heavy)
+        playMerge()
     }
     
     /// 神剑合成
     func playMergeShen() {
-        playSoundEffect("merge_epic", fallbackSystemSound: successSoundID)
-        
-        // 双重音效
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-            self.playSoundEffect("sparkle")
-        }
-        
-        vibrate(.heavy)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            self.vibrate(.heavy)
-        }
+        playMerge()
     }
     
     // MARK: - 连击音效
@@ -360,39 +371,21 @@ class SoundManager {
         vibrate(.heavy)
     }
     
-    /// 升级光柱
+    /// 升级光柱（短音效，音量降低）
     func playLevelUp() {
-        playSoundEffect("power_up", fallbackSystemSound: successSoundID)
-        playSoundEffect("sparkle")
+        playMergeSoundEffect("power_up", fallbackSystemSound: successSoundID)
         vibrate(.medium)
     }
     
     // MARK: - 终极技音效
     
-    /// 万剑归宗
+    /// 万剑归宗（简化版，只播放一个音效）
     func playUltimate() {
-        // 蓄力音效
-        playSoundEffect("ultimate_charge")
+        // 播放一个简短的终极技音效
+        playMergeSoundEffect("ultimate_release", fallbackSystemSound: successSoundID)
         
-        // 连续剑气音效
-        for i in 0..<8 {
-            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.15) {
-                self.playSoundEffect("sword_whoosh")
-            }
-        }
-        
-        // 释放音效
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-            self.playSoundEffect("ultimate_release")
-        }
-        
-        // 冲击波音效
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-            self.playSoundEffect("ultimate_impact")
-        }
-        
-        // 震动序列
-        let vibratePattern: [Double] = [0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2]
+        // 震动反馈
+        let vibratePattern: [Double] = [0, 0.2, 0.4]
         for delay in vibratePattern {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                 self.vibrate(.heavy)
@@ -402,30 +395,16 @@ class SoundManager {
     
     // MARK: - UI音效
     
-    /// 能量满音效
+    /// 能量满音效（短音效，音量降低）
     func playEnergyFull() {
-        playSoundEffect("power_up", fallbackSystemSound: successSoundID)
-        playSoundEffect("sparkle")
+        playMergeSoundEffect("power_up", fallbackSystemSound: successSoundID)
         vibrate(.medium)
     }
     
-    /// 关卡完成音效
+    /// 关卡完成音效（保留）
     func playLevelComplete() {
         playSoundEffect("level_complete")
-        
-        // 胜利音阶
-        for i in 0..<5 {
-            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.15) {
-                self.playSoundEffect("success", fallbackSystemSound: self.successSoundID)
-            }
-        }
-        
-        // 庆祝震动
-        for i in 0..<5 {
-            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.2) {
-                self.vibrate(.medium)
-            }
-        }
+        vibrate(.medium)
     }
     
     /// 游戏失败音效
@@ -434,10 +413,9 @@ class SoundManager {
         vibrate(.heavy)
     }
     
-    /// 星星出现音效
+    /// 星星出现音效（短音效，音量降低）
     func playStar() {
-        playSoundEffect("star_collect", fallbackSystemSound: successSoundID)
-        playSoundEffect("sparkle")
+        playMergeSoundEffect("sparkle", fallbackSystemSound: successSoundID)
         vibrate(.light)
     }
     
@@ -455,26 +433,19 @@ class SoundManager {
     
     // MARK: - 反馈音效
     
-    /// 根据消除数量播放反馈音效
+    /// 根据消除数量播放反馈音效（短音效，音量降低）
     func playFeedback(for count: Int) {
         switch count {
-        case 3:
-            playSoundEffect("merge_small", fallbackSystemSound: tapSoundID)
-        case 4:
-            playSoundEffect("merge_medium", fallbackSystemSound: selectSoundID)
+        case 3...4:
+            vibrate(.light)
         case 5:
-            playSoundEffect("merge_large", fallbackSystemSound: successSoundID)
-            playSoundEffect("sparkle")
+            playMergeSoundEffect("success", fallbackSystemSound: successSoundID)
             vibrate(.medium)
         case 6...7:
-            playSoundEffect("merge_epic", fallbackSystemSound: successSoundID)
-            playSoundEffect("whoosh")
+            playMergeSoundEffect("success", fallbackSystemSound: successSoundID)
             vibrate(.heavy)
         case 8...10:
-            playSoundEffect("explosion")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                self.playSoundEffect("power_up")
-            }
+            playMergeSoundEffect("power_up", fallbackSystemSound: successSoundID)
             vibrate(.heavy)
         default:
             playUltimate()
