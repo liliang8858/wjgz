@@ -913,7 +913,7 @@ class EffectsManager {
     
     /// 背景粒子流
     func startBackgroundParticles() {
-        guard let layer = effectLayer, let scene = scene else { return }
+        guard let layer = effectLayer, let _ = scene else { return }
         
         let emitAction = SKAction.run { [weak self] in
             self?.emitBackgroundParticle()
@@ -999,7 +999,7 @@ class EffectsManager {
     
     /// 关卡完成庆祝
     func playLevelCompleteEffect(stars: Int) {
-        guard let layer = effectLayer, let scene = scene else { return }
+        guard let layer = effectLayer, let _ = scene else { return }
         
         // 音效
         SoundManager.shared.playLevelComplete()

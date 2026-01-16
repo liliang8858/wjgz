@@ -7,11 +7,14 @@
 
 import AVFoundation
 import AudioToolbox
+#if os(iOS)
+import UIKit
+#endif
 
 class SoundManager {
     static let shared = SoundManager()
     
-    private var audioEngine: AVAudioEngine!
+    private var audioEngine: AVAudioEngine?
     private var players: [String: AVAudioPlayerNode] = [:]
     private var isEnabled: Bool = true
     
@@ -19,26 +22,35 @@ class SoundManager {
     private let masterVolume: Float = 0.6
     
     private init() {
-        setupAudioEngine()
+        #if targetEnvironment(simulator)
+        // 在模拟器上禁用音频以避免崩溃
+        print("SoundManager: Running on simulator, audio disabled")
+        isEnabled = false
+        #else
+        setupAudioSession()
+        #endif
     }
     
-    private func setupAudioEngine() {
-        audioEngine = AVAudioEngine()
-        
+    private func setupAudioSession() {
+        #if os(iOS)
         do {
-            try AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default)
+            try AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default, options: [.mixWithOthers])
             try AVAudioSession.sharedInstance().setActive(true)
         } catch {
             print("Failed to setup audio session: \(error)")
+            isEnabled = false
+        }
+        #endif
+    }
+    
+    private func getOrCreateEngine() -> AVAudioEngine? {
+        guard isEnabled else { return nil }
+        
+        if audioEngine == nil {
+            audioEngine = AVAudioEngine()
         }
         
-        audioEngine.prepare()
-        
-        do {
-            try audioEngine.start()
-        } catch {
-            print("Failed to start audio engine: \(error)")
-        }
+        return audioEngine
     }
     
     func setEnabled(_ enabled: Bool) {
@@ -358,6 +370,9 @@ class SoundManager {
     // MARK: - 底层音频生成
     
     private func playTone(frequency: Double, duration: TimeInterval, volume: Float) {
+        guard isEnabled else { return }
+        guard let engine = getOrCreateEngine() else { return }
+        
         let sampleRate = 44100.0
         let frameCount = AVAudioFrameCount(sampleRate * duration)
         
@@ -373,23 +388,40 @@ class SoundManager {
         
         for frame in 0..<Int(frameCount) {
             let value = sin(angularFrequency * Double(frame))
-            let envelope = min(1.0, Double(frame) / (sampleRate * 0.01)) * // Attack
-                          min(1.0, Double(frameCount - frame) / (sampleRate * 0.05)) // Release
+            // Attack envelope
+            let attackEnvelope = min(1.0, Double(frame) / (sampleRate * 0.01))
+            // Release envelope
+            let releaseEnvelope = min(1.0, Double(Int(frameCount) - frame) / (sampleRate * 0.05))
+            let envelope = attackEnvelope * releaseEnvelope
             data[frame] = Float(value * envelope) * volume * masterVolume
         }
         
         let player = AVAudioPlayerNode()
-        audioEngine.attach(player)
-        audioEngine.connect(player, to: audioEngine.mainMixerNode, format: format)
         
-        player.scheduleBuffer(buffer) {
-            self.audioEngine.detach(player)
+        do {
+            engine.attach(player)
+            engine.connect(player, to: engine.mainMixerNode, format: format)
+            
+            // Start engine only after connecting nodes
+            if !engine.isRunning {
+                try engine.start()
+            }
+            
+            player.scheduleBuffer(buffer) { [weak engine] in
+                engine?.detach(player)
+            }
+            
+            player.play()
+        } catch {
+            print("Failed to play tone: \(error)")
+            engine.detach(player)
         }
-        
-        player.play()
     }
     
     private func playSweep(startFreq: Double, endFreq: Double, duration: TimeInterval, volume: Float) {
+        guard isEnabled else { return }
+        guard let engine = getOrCreateEngine() else { return }
+        
         let sampleRate = 44100.0
         let frameCount = AVAudioFrameCount(sampleRate * duration)
         
@@ -407,20 +439,33 @@ class SoundManager {
             let angularFrequency = 2.0 * .pi * frequency / sampleRate
             
             let value = sin(angularFrequency * Double(frame))
-            let envelope = min(1.0, Double(frame) / (sampleRate * 0.01)) *
-                          min(1.0, Double(frameCount - frame) / (sampleRate * 0.05))
+            // Attack envelope
+            let attackEnvelope = min(1.0, Double(frame) / (sampleRate * 0.01))
+            // Release envelope
+            let releaseEnvelope = min(1.0, Double(Int(frameCount) - frame) / (sampleRate * 0.05))
+            let envelope = attackEnvelope * releaseEnvelope
             data[frame] = Float(value * envelope) * volume * masterVolume
         }
         
         let player = AVAudioPlayerNode()
-        audioEngine.attach(player)
-        audioEngine.connect(player, to: audioEngine.mainMixerNode, format: format)
         
-        player.scheduleBuffer(buffer) {
-            self.audioEngine.detach(player)
+        do {
+            engine.attach(player)
+            engine.connect(player, to: engine.mainMixerNode, format: format)
+            
+            if !engine.isRunning {
+                try engine.start()
+            }
+            
+            player.scheduleBuffer(buffer) { [weak engine] in
+                engine?.detach(player)
+            }
+            
+            player.play()
+        } catch {
+            print("Failed to play sweep: \(error)")
+            engine.detach(player)
         }
-        
-        player.play()
     }
     
     private func playChord(frequencies: [Double], duration: TimeInterval, volume: Float) {
@@ -432,14 +477,17 @@ class SoundManager {
     private func playReverb(frequency: Double, duration: TimeInterval, volume: Float) {
         for i in 0..<5 {
             let delay = Double(i) * 0.1
-            let decayVolume = volume * pow(0.6, Double(i))
+            let decayVolume = Float(volume) * Float(pow(0.6, Double(i)))
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-                self.playTone(frequency: frequency, duration: duration * 0.5, volume: Float(decayVolume))
+                self.playTone(frequency: frequency, duration: duration * 0.5, volume: decayVolume)
             }
         }
     }
     
     private func playNoise(duration: TimeInterval, volume: Float) {
+        guard isEnabled else { return }
+        guard let engine = getOrCreateEngine() else { return }
+        
         let sampleRate = 44100.0
         let frameCount = AVAudioFrameCount(sampleRate * duration)
         
@@ -453,20 +501,33 @@ class SoundManager {
         
         for frame in 0..<Int(frameCount) {
             let value = Float.random(in: -1...1)
-            let envelope = min(1.0, Double(frame) / (sampleRate * 0.01)) *
-                          min(1.0, Double(frameCount - frame) / (sampleRate * 0.02))
+            // Attack envelope
+            let attackEnvelope = min(1.0, Double(frame) / (sampleRate * 0.01))
+            // Release envelope
+            let releaseEnvelope = min(1.0, Double(Int(frameCount) - frame) / (sampleRate * 0.02))
+            let envelope = attackEnvelope * releaseEnvelope
             data[frame] = value * Float(envelope) * volume * masterVolume
         }
         
         let player = AVAudioPlayerNode()
-        audioEngine.attach(player)
-        audioEngine.connect(player, to: audioEngine.mainMixerNode, format: format)
         
-        player.scheduleBuffer(buffer) {
-            self.audioEngine.detach(player)
+        do {
+            engine.attach(player)
+            engine.connect(player, to: engine.mainMixerNode, format: format)
+            
+            if !engine.isRunning {
+                try engine.start()
+            }
+            
+            player.scheduleBuffer(buffer) { [weak engine] in
+                engine?.detach(player)
+            }
+            
+            player.play()
+        } catch {
+            print("Failed to play noise: \(error)")
+            engine.detach(player)
         }
-        
-        player.play()
     }
     
     // MARK: - 触觉反馈
@@ -476,6 +537,7 @@ class SoundManager {
     }
     
     private func vibrate(_ style: VibrateStyle) {
+        #if os(iOS)
         let generator: UIImpactFeedbackGenerator
         switch style {
         case .light:
@@ -486,5 +548,6 @@ class SoundManager {
             generator = UIImpactFeedbackGenerator(style: .heavy)
         }
         generator.impactOccurred()
+        #endif
     }
 }
