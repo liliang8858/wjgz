@@ -43,6 +43,13 @@ class GameScene: SKScene {
     private var currentLevel: Level!
     private var isGameOver: Bool = false
     
+    // MARK: - Achievement Tracking
+    private var maxCombo: Int = 0
+    private var totalChainClears: Int = 0
+    private var ultimateUsed: Int = 0
+    private var perfectMerges: Int = 0  // 5个或以上的合成
+    private var shenSwordsMerged: Int = 0  // 合成出的神剑数量
+    
     // MARK: - UI Elements
     private var scoreLabel: SKLabelNode!
     private var levelLabel: SKLabelNode!
@@ -669,30 +676,38 @@ class GameScene: SKScene {
     // MARK: - Touch Handling
     
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let touch = touches.first, !isGameOver else { return }
+        guard let touch = touches.first else { return }
         let location = touch.location(in: self)
         
-        // 点击涟漪特效
-        effectsManager.playTapRipple(at: location)
-        
+        // 优先处理 UI 按钮（即使游戏结束也要响应）
         let nodes = nodes(at: location)
         for node in nodes {
-            if node.name == "ultimateBtn" || node.parent?.name == "ultimateBtn" {
-                if !ultimateButton.isHidden {
-                    triggerUltimate()
-                }
+            // 处理关卡完成界面按钮
+            if node.name == "nextLevelBtn" {
+                goToNextLevel()
                 return
             }
             if node.name == "restartBtn" {
                 restartGame()
                 return
             }
-            if node.name == "nextLevelBtn" {
-                goToNextLevel()
-                return
-            }
             if node.name == "skipTutorial" {
                 skipTutorial()
+                return
+            }
+        }
+        
+        // 如果游戏结束，不处理游戏内交互
+        guard !isGameOver else { return }
+        
+        // 点击涟漪特效
+        effectsManager.playTapRipple(at: location)
+        
+        for node in nodes {
+            if node.name == "ultimateBtn" || node.parent?.name == "ultimateBtn" {
+                if !ultimateButton.isHidden {
+                    triggerUltimate()
+                }
                 return
             }
             if let sword = node as? Sword {
@@ -934,6 +949,17 @@ class GameScene: SKScene {
         
         mergeCount += 1
         comboCount += 1
+        
+        // 追踪最大连击
+        if comboCount > maxCombo {
+            maxCombo = comboCount
+        }
+        
+        // 追踪完美合成（5个或以上）
+        if swords.count >= 5 {
+            perfectMerges += 1
+        }
+        
         resetComboTimer()
         
         // 合成爆发特效
@@ -958,6 +984,11 @@ class GameScene: SKScene {
         // 升级中心剑
         let oldType = centerSword.type
         centerSword.upgrade()
+        
+        // 追踪神剑合成
+        if centerSword.type == .shen && oldType != .shen {
+            shenSwordsMerged += 1
+        }
         
         // 升级光柱特效
         if centerSword.type != oldType {
@@ -995,6 +1026,7 @@ class GameScene: SKScene {
             addScore(5)
         }
         
+        totalChainClears += 1
         GameStateManager.shared.recordChainClear()
     }
     
@@ -1008,6 +1040,7 @@ class GameScene: SKScene {
             }
         }
         
+        totalChainClears += 1
         GameStateManager.shared.recordChainClear()
     }
     
@@ -1058,6 +1091,7 @@ class GameScene: SKScene {
         energy = 0
         updateUI()
         
+        ultimateUsed += 1
         GameStateManager.shared.recordUltimate()
         
         // 史诗特效
@@ -1193,55 +1227,284 @@ class GameScene: SKScene {
     }
     
     private func showLevelCompleteUI(stars: Int, currentLevelIdx: Int) {
+        // 创建半透明背景
         let overlay = SKShapeNode(rectOf: size)
-        overlay.fillColor = SKColor(white: 0, alpha: 0.9)
+        overlay.fillColor = SKColor(white: 0, alpha: 0.85)
+        overlay.strokeColor = .clear
         overlay.zPosition = 400
         overlay.name = "levelCompleteOverlay"
         overlay.alpha = 0
+        overlay.isUserInteractionEnabled = false
         addChild(overlay)
         overlay.run(SKAction.fadeIn(withDuration: 0.3))
         
+        // 标题
         let titleLabel = SKLabelNode(text: "⚔️ 关卡完成 ⚔️")
-        titleLabel.fontSize = 40
+        titleLabel.fontSize = 44
         titleLabel.fontName = "PingFangSC-Heavy"
         titleLabel.fontColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0)
-        titleLabel.position = CGPoint(x: 0, y: 120)
+        titleLabel.position = CGPoint(x: 0, y: 200)
+        titleLabel.zPosition = 1
         overlay.addChild(titleLabel)
         
-        // Stars
+        // 星星显示
+        let starContainer = SKNode()
+        starContainer.position = CGPoint(x: 0, y: 140)
+        starContainer.zPosition = 1
         for i in 0..<3 {
             let star = SKLabelNode(text: i < stars ? "⭐️" : "☆")
             star.fontSize = 50
-            star.position = CGPoint(x: CGFloat(i - 1) * 70, y: 50)
-            overlay.addChild(star)
+            star.position = CGPoint(x: CGFloat(i - 1) * 70, y: 0)
+            starContainer.addChild(star)
+            
+            // 星星动画
+            if i < stars {
+                star.setScale(0)
+                star.run(SKAction.sequence([
+                    SKAction.wait(forDuration: 0.3 + Double(i) * 0.2),
+                    SKAction.group([
+                        SKAction.scale(to: 1.2, duration: 0.2),
+                        SKAction.rotate(byAngle: .pi * 2, duration: 0.4)
+                    ]),
+                    SKAction.scale(to: 1.0, duration: 0.1)
+                ]))
+            }
         }
+        overlay.addChild(starContainer)
         
+        // 分数信息
         let scoreInfo = SKLabelNode(text: "修为: \(score) / \(currentLevel.targetScore)")
         scoreInfo.fontSize = 22
         scoreInfo.fontName = "PingFangSC-Regular"
         scoreInfo.fontColor = .white
-        scoreInfo.position = CGPoint(x: 0, y: -20)
+        scoreInfo.position = CGPoint(x: 0, y: 80)
+        scoreInfo.zPosition = 1
         overlay.addChild(scoreInfo)
         
-        // 使用保存的索引来判断
+        let mergeInfo = SKLabelNode(text: "合成: \(mergeCount) / \(currentLevel.targetMerges)")
+        mergeInfo.fontSize = 22
+        mergeInfo.fontName = "PingFangSC-Regular"
+        mergeInfo.fontColor = .white
+        mergeInfo.position = CGPoint(x: 0, y: 55)
+        mergeInfo.zPosition = 1
+        overlay.addChild(mergeInfo)
+        
+        // 成就展示区域
+        let achievementsTitle = SKLabelNode(text: "✨ 本关成就 ✨")
+        achievementsTitle.fontSize = 20
+        achievementsTitle.fontName = "PingFangSC-Semibold"
+        achievementsTitle.fontColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0)
+        achievementsTitle.position = CGPoint(x: 0, y: 20)
+        achievementsTitle.zPosition = 1
+        overlay.addChild(achievementsTitle)
+        
+        // 收集成就数据
+        let achievements = collectAchievements()
+        
+        // 显示成就（最多显示4个）
+        let displayAchievements = Array(achievements.prefix(4))
+        let startY: CGFloat = -10
+        let spacing: CGFloat = 35
+        
+        for (index, achievement) in displayAchievements.enumerated() {
+            let achievementNode = createAchievementBadge(
+                icon: achievement.icon,
+                text: achievement.text,
+                position: CGPoint(x: 0, y: startY - CGFloat(index) * spacing)
+            )
+            achievementNode.alpha = 0
+            overlay.addChild(achievementNode)
+            
+            // 成就动画
+            achievementNode.run(SKAction.sequence([
+                SKAction.wait(forDuration: 0.8 + Double(index) * 0.15),
+                SKAction.group([
+                    SKAction.fadeIn(withDuration: 0.3),
+                    SKAction.moveBy(x: 0, y: 5, duration: 0.3)
+                ])
+            ]))
+        }
+        
+        // 按钮容器
+        let buttonY: CGFloat = -160
+        
+        // 判断是否显示下一关按钮
         if currentLevelIdx < LevelConfig.shared.levels.count - 1 {
-            let nextBtn = createButton(text: "下一关 ➡️", position: CGPoint(x: 0, y: -100))
-            nextBtn.name = "nextLevelBtn"
+            // 下一关按钮
+            let nextBtn = createStyledButton(
+                text: "下一关 ➡️",
+                position: CGPoint(x: 0, y: buttonY),
+                color: SKColor(red: 0.2, green: 0.8, blue: 0.3, alpha: 1.0),
+                name: "nextLevelBtn"
+            )
             overlay.addChild(nextBtn)
+            
+            // 重新挑战按钮（小一点，放在下面）
+            let restartBtn = createStyledButton(
+                text: "重新挑战",
+                position: CGPoint(x: 0, y: buttonY - 60),
+                color: SKColor(red: 0.5, green: 0.5, blue: 0.5, alpha: 1.0),
+                name: "restartBtn",
+                fontSize: 18
+            )
+            overlay.addChild(restartBtn)
         } else {
+            // 所有关卡完成
             let completeLabel = SKLabelNode(text: "🎉 所有关卡已完成 🎉")
             completeLabel.fontSize = 28
             completeLabel.fontName = "PingFangSC-Bold"
-            completeLabel.fontColor = .green
-            completeLabel.position = CGPoint(x: 0, y: -100)
+            completeLabel.fontColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0)
+            completeLabel.position = CGPoint(x: 0, y: buttonY + 20)
+            completeLabel.zPosition = 1
             overlay.addChild(completeLabel)
+            
+            // 重新挑战按钮
+            let restartBtn = createStyledButton(
+                text: "重新挑战",
+                position: CGPoint(x: 0, y: buttonY - 30),
+                color: SKColor(red: 0.2, green: 0.8, blue: 0.3, alpha: 1.0),
+                name: "restartBtn"
+            )
+            overlay.addChild(restartBtn)
+        }
+    }
+    
+    // 收集本关成就
+    private func collectAchievements() -> [(icon: String, text: String)] {
+        var achievements: [(icon: String, text: String)] = []
+        
+        // 最大连击
+        if maxCombo >= 5 {
+            achievements.append(("🔥", "连击大师 x\(maxCombo)"))
+        } else if maxCombo >= 3 {
+            achievements.append(("⚡️", "连击达人 x\(maxCombo)"))
         }
         
-        let restartBtn = createButton(text: "重新挑战", position: CGPoint(x: 0, y: -160))
-        restartBtn.name = "restartBtn"
-        restartBtn.fontColor = .lightGray
-        restartBtn.fontSize = 24
-        overlay.addChild(restartBtn)
+        // 完美合成
+        if perfectMerges >= 3 {
+            achievements.append(("💎", "完美合成 x\(perfectMerges)"))
+        } else if perfectMerges >= 1 {
+            achievements.append(("✨", "精准合成 x\(perfectMerges)"))
+        }
+        
+        // 神剑合成
+        if shenSwordsMerged >= 2 {
+            achievements.append(("🗡️", "神剑宗师 x\(shenSwordsMerged)"))
+        } else if shenSwordsMerged >= 1 {
+            achievements.append(("⚔️", "神剑初成 x\(shenSwordsMerged)"))
+        }
+        
+        // 连锁消除
+        if totalChainClears >= 5 {
+            achievements.append(("💥", "连锁大师 x\(totalChainClears)"))
+        } else if totalChainClears >= 2 {
+            achievements.append(("🌟", "连锁高手 x\(totalChainClears)"))
+        }
+        
+        // 大招使用
+        if ultimateUsed >= 3 {
+            achievements.append(("⚡️", "万剑归宗 x\(ultimateUsed)"))
+        } else if ultimateUsed >= 1 {
+            achievements.append(("✨", "剑意爆发 x\(ultimateUsed)"))
+        }
+        
+        // 步数效率
+        if let moveLimit = currentLevel.rules.moveLimit {
+            let efficiency = Double(moveCount) / Double(moveLimit)
+            if efficiency <= 0.7 {
+                achievements.append(("🎯", "步步为营"))
+            }
+        }
+        
+        // 时间效率
+        if let timeLimit = currentLevel.rules.timeLimit {
+            let timeUsed = timeLimit - timeRemaining
+            let efficiency = timeUsed / timeLimit
+            if efficiency <= 0.7 {
+                achievements.append(("⏱️", "速战速决"))
+            }
+        }
+        
+        // 高分成就
+        let scoreRatio = Double(score) / Double(currentLevel.targetScore)
+        if scoreRatio >= 2.0 {
+            achievements.append(("👑", "修为超凡"))
+        } else if scoreRatio >= 1.5 {
+            achievements.append(("🏆", "修为精进"))
+        }
+        
+        // 如果没有特殊成就，至少显示一个基础成就
+        if achievements.isEmpty {
+            achievements.append(("✅", "关卡完成"))
+        }
+        
+        return achievements
+    }
+    
+    // 创建成就徽章
+    private func createAchievementBadge(icon: String, text: String, position: CGPoint) -> SKNode {
+        let container = SKNode()
+        container.position = position
+        container.zPosition = 1
+        
+        // 背景
+        let background = SKShapeNode(rectOf: CGSize(width: 280, height: 28), cornerRadius: 14)
+        background.fillColor = SKColor(white: 0.2, alpha: 0.8)
+        background.strokeColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 0.5)
+        background.lineWidth = 1
+        container.addChild(background)
+        
+        // 图标
+        let iconLabel = SKLabelNode(text: icon)
+        iconLabel.fontSize = 20
+        iconLabel.position = CGPoint(x: -120, y: -7)
+        iconLabel.horizontalAlignmentMode = .left
+        container.addChild(iconLabel)
+        
+        // 文字
+        let textLabel = SKLabelNode(text: text)
+        textLabel.fontSize = 16
+        textLabel.fontName = "PingFangSC-Regular"
+        textLabel.fontColor = .white
+        textLabel.position = CGPoint(x: -90, y: -6)
+        textLabel.horizontalAlignmentMode = .left
+        container.addChild(textLabel)
+        
+        return container
+    }
+    
+    // 创建样式化按钮
+    private func createStyledButton(text: String, position: CGPoint, color: SKColor, name: String, fontSize: CGFloat = 26) -> SKNode {
+        let container = SKNode()
+        container.position = position
+        container.name = name
+        container.zPosition = 1
+        
+        // 按钮背景
+        let background = SKShapeNode(rectOf: CGSize(width: 240, height: 55), cornerRadius: 12)
+        background.fillColor = color
+        background.strokeColor = .white
+        background.lineWidth = 2
+        background.name = name
+        container.addChild(background)
+        
+        // 按钮文字
+        let label = SKLabelNode(text: text)
+        label.fontSize = fontSize
+        label.fontName = "PingFangSC-Semibold"
+        label.fontColor = .white
+        label.verticalAlignmentMode = .center
+        label.name = name
+        container.addChild(label)
+        
+        // 添加脉冲动画
+        let pulse = SKAction.sequence([
+            SKAction.scale(to: 1.05, duration: 0.6),
+            SKAction.scale(to: 1.0, duration: 0.6)
+        ])
+        container.run(SKAction.repeatForever(pulse))
+        
+        return container
     }
     
     // MARK: - Game Over
@@ -1382,6 +1645,13 @@ class GameScene: SKScene {
         comboCount = 0
         moveCount = 0
         isGameOver = false
+        
+        // 重置成就追踪
+        maxCombo = 0
+        totalChainClears = 0
+        ultimateUsed = 0
+        perfectMerges = 0
+        shenSwordsMerged = 0
         
         gameTimer?.invalidate()
         removeAction(forKey: "autoShuffle")
