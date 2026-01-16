@@ -1176,7 +1176,7 @@ class GameScene: SKScene {
         // 庆祝特效
         effectsManager.playLevelCompleteEffect(stars: stars)
         
-        // 先保存当前关卡索引
+        // 保存当前关卡索引（在更新之前）
         let currentLevelIdx = LevelConfig.shared.currentLevelIndex
         
         // 延迟显示结算界面
@@ -1184,11 +1184,12 @@ class GameScene: SKScene {
             SKAction.wait(forDuration: 1.5),
             SKAction.run { [weak self] in
                 self?.showLevelCompleteUI(stars: stars, currentLevelIdx: currentLevelIdx)
+                // 在显示 UI 之后再完成关卡（更新索引）
+                if stars > 0 {
+                    LevelConfig.shared.completeLevel(stars: stars)
+                }
             }
         ]))
-        
-        // 完成关卡（这会更新索引）
-        LevelConfig.shared.completeLevel(stars: stars)
     }
     
     private func showLevelCompleteUI(stars: Int, currentLevelIdx: Int) {
@@ -1403,7 +1404,8 @@ class GameScene: SKScene {
     }
     
     private func goToNextLevel() {
-        LevelConfig.shared.goToNextLevel()
+        // 注意：索引已经在 completeLevel 中更新过了
+        // 这里只需要重启游戏即可
         restartGame()
     }
     
