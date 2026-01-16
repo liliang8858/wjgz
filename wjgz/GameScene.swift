@@ -1074,8 +1074,6 @@ class GameScene: SKScene {
             addScore(20)
         }
         
-        playUltimateSound()
-        
         // 延迟补充
         run(SKAction.sequence([
             SKAction.wait(forDuration: 2.0),
