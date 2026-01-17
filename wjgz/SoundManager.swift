@@ -15,7 +15,7 @@ import UIKit
 class SoundManager {
     static let shared = SoundManager()
     
-    private var isEnabled: Bool = true
+    private(set) var isEnabled: Bool = true  // 改为可读属性
     private var musicVolume: Float = 0.4
     private var sfxVolume: Float = 0.7
     
@@ -70,8 +70,13 @@ class SoundManager {
     
     /// 加载音效文件
     private func loadSound(_ name: String) -> AVAudioPlayer? {
-        // 尝试从不同路径加载
+        // 尝试从不同路径加载，包括子文件夹
         let possiblePaths = [
+            "Sounds/SFX/UI/\(name)",
+            "Sounds/SFX/Sword/\(name)",
+            "Sounds/SFX/Merge/\(name)",
+            "Sounds/SFX/Effects/\(name)",
+            "Sounds/SFX/Ultimate/\(name)",
             "Sounds/SFX/\(name)",
             "Sounds/\(name)",
             name
@@ -87,8 +92,10 @@ class SoundManager {
                         let player = try AVAudioPlayer(contentsOf: url)
                         player.prepareToPlay()
                         player.volume = sfxVolume
+                        print("✅ 成功加载音效: \(basePath).\(ext)")
                         return player
                     } catch {
+                        print("❌ 加载音效失败: \(basePath).\(ext) - \(error)")
                         continue
                     }
                 }
@@ -96,24 +103,34 @@ class SoundManager {
         }
         
         // 如果找不到音效文件，返回 nil（将使用系统音效）
+        print("⚠️ 音效文件未找到: \(name)")
         return nil
     }
     
     /// 播放音效
     private func playSoundEffect(_ name: String, fallbackSystemSound: SystemSoundID? = nil) {
-        guard isEnabled else { return }
+        print("🔊 尝试播放音效: \(name), 启用状态: \(isEnabled)")
+        
+        guard isEnabled else { 
+            print("❌ 音效系统已禁用")
+            return 
+        }
         
         // 尝试播放自定义音效
         if let player = getAvailablePlayer(for: name) {
             player.currentTime = 0
             player.volume = sfxVolume
-            player.play()
+            let success = player.play()
+            print("🎵 播放自定义音效 \(name): \(success ? "成功" : "失败")")
             return
         }
         
         // 如果没有自定义音效，使用系统音效
         if let systemSound = fallbackSystemSound {
             AudioServicesPlaySystemSound(systemSound)
+            print("🔔 播放系统音效: \(systemSound)")
+        } else {
+            print("⚠️ 音效文件未找到: \(name)")
         }
     }
     
@@ -285,6 +302,7 @@ class SoundManager {
     
     /// 点击音效
     func playTap() {
+        print("🔊 playTap() 被调用")
         playSoundEffect("button_click", fallbackSystemSound: tapSoundID)
         vibrate(.light)
     }

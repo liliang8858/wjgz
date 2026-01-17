@@ -54,6 +54,10 @@ class GameScene: SKScene {
     private var isGameOver: Bool = false
     private var ultimatePatternHintShown: Bool = false  // 是否已显示终极奥义提示
     
+    // MARK: - Combo State Management
+    private var isInComboPhase: Bool = false  // 是否在连消阶段
+    private var comboPhaseStartTime: TimeInterval = 0  // 连消开始时间
+    
     // MARK: - Performance Optimization
     private var visitedCache = Set<String>()  // 复用的visited集合
     
@@ -125,14 +129,23 @@ class GameScene: SKScene {
     
     /// 初始化音效系统
     private func setupAudio() {
+        // 确保音效系统启用
+        SoundManager.shared.setEnabled(true)
+        
         // 设置音量
         SoundManager.shared.setMusicVolume(0.05)  // 背景音乐 5%
         SoundManager.shared.setSFXVolume(0.7)     // 音效 70%
         
-        // 播放背景音乐
+        // 播放背景音乐 (已关闭)
         // SoundManager.shared.playBackgroundMusic("background_main")
         
-        print("🎵 音效系统已初始化")
+        // 测试音效系统
+        #if DEBUG
+        AudioTestHelper.shared.testAllSoundFiles()
+        AudioTestHelper.shared.testSoundPlayback()
+        #endif
+        
+        print("🎵 音效系统已初始化，音效启用状态: \(SoundManager.shared.isEnabled)")
     }
     
     // MARK: - Setup
@@ -180,6 +193,12 @@ class GameScene: SKScene {
     private func startTimer() {
         gameTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self = self else { return }
+            
+            // 如果在连消阶段，暂停时间消耗
+            if self.isInComboPhase {
+                return
+            }
+            
             self.timeRemaining -= 1
             self.updateTimerDisplay()
             
@@ -704,19 +723,33 @@ class GameScene: SKScene {
     }
     
     private func updateTimerDisplay() {
-        timerLabel?.text = "⏱ \(Int(timeRemaining))s"
-        if timeRemaining <= 10 {
-            timerLabel?.fontColor = .red
+        if isInComboPhase {
+            timerLabel?.text = "⏱ \(Int(timeRemaining))s ⏸️"
+            timerLabel?.fontColor = SKColor(red: 1.0, green: 0.6, blue: 0.0, alpha: 1.0)
+        } else {
+            timerLabel?.text = "⏱ \(Int(timeRemaining))s"
+            if timeRemaining <= 10 {
+                timerLabel?.fontColor = .red
+            } else {
+                timerLabel?.fontColor = .white
+            }
         }
     }
     
     private func updateMoveDisplay() {
         if let moveLimit = currentLevel.rules.moveLimit {
             let remaining = moveLimit - moveCount
-            moveLabel?.text = "👆 \(remaining)步"
             
-            if remaining <= 5 {
-                moveLabel?.fontColor = .red
+            if isInComboPhase {
+                moveLabel?.text = "👆 \(remaining)步 ⏸️"
+                moveLabel?.fontColor = SKColor(red: 1.0, green: 0.6, blue: 0.0, alpha: 1.0)
+            } else {
+                moveLabel?.text = "👆 \(remaining)步"
+                if remaining <= 5 {
+                    moveLabel?.fontColor = .red
+                } else {
+                    moveLabel?.fontColor = .white
+                }
             }
         }
     }
@@ -820,6 +853,10 @@ class GameScene: SKScene {
         // 点击涟漪特效
         effectsManager.playTapRipple(at: location)
         
+        // 测试音效播放
+        print("🔊 触摸开始，播放点击音效")
+        SoundManager.shared.playTap()
+        
         for node in nodes {
             if node.name == "ultimateBtn" || node.parent?.name == "ultimateBtn" {
                 if !ultimateButton.isHidden {
@@ -911,6 +948,11 @@ class GameScene: SKScene {
     }
     
     private func incrementMove() {
+        // 如果在连消阶段，不消耗步数
+        if isInComboPhase {
+            return
+        }
+        
         moveCount += 1
         
         if let moveLimit = currentLevel.rules.moveLimit {
@@ -1051,6 +1093,9 @@ class GameScene: SKScene {
         }
         
         if hadMatches {
+            // 进入连消阶段，暂停时间和步数消耗
+            enterComboPhase()
+            
             // 根据消除数量给予不同反馈
             giveFeedbackForMatchCount(totalMatchCount)
             
@@ -1059,9 +1104,20 @@ class GameScene: SKScene {
             
             run(SKAction.sequence([
                 SKAction.wait(forDuration: 0.4),
-                SKAction.run { [weak self] in self?.replenishSwords() }
+                SKAction.run { [weak self] in 
+                    self?.replenishSwords()
+                    // 补充完成后，检查是否还有连消
+                    self?.run(SKAction.sequence([
+                        SKAction.wait(forDuration: 0.2),
+                        SKAction.run { [weak self] in
+                            self?.checkForContinuousMatches()
+                        }
+                    ]))
+                }
             ]))
         } else {
+            // 退出连消阶段
+            exitComboPhase()
             resetCombo()
             // 如果是交换操作且没有消除，回退交换
             if let lastSwap = pendingSwap {
@@ -1258,7 +1314,88 @@ class GameScene: SKScene {
     }
 
     
-    // MARK: - Combo System
+    // MARK: - Combo Phase Management
+    
+    private func enterComboPhase() {
+        if !isInComboPhase {
+            isInComboPhase = true
+            comboPhaseStartTime = CACurrentMediaTime()
+            
+            // 显示连消状态指示
+            showComboPhaseIndicator(true)
+            
+            print("🔥 进入连消阶段 - 时间和步数暂停消耗")
+        }
+    }
+    
+    private func exitComboPhase() {
+        if isInComboPhase {
+            isInComboPhase = false
+            let comboDuration = CACurrentMediaTime() - comboPhaseStartTime
+            
+            // 隐藏连消状态指示
+            showComboPhaseIndicator(false)
+            
+            print("✅ 退出连消阶段 - 连消持续了 \(String(format: "%.1f", comboDuration)) 秒")
+        }
+    }
+    
+    private func showComboPhaseIndicator(_ show: Bool) {
+        // 移除之前的指示器
+        childNode(withName: "comboPhaseIndicator")?.removeFromParent()
+        
+        if show {
+            // 创建连消阶段指示器
+            let indicator = SKLabelNode(text: "🔥 连消中...")
+            indicator.fontSize = 16
+            indicator.fontName = "PingFangSC-Semibold"
+            indicator.fontColor = SKColor(red: 1.0, green: 0.6, blue: 0.0, alpha: 1.0)
+            indicator.position = CGPoint(x: 0, y: size.height/2 - 50)
+            indicator.zPosition = 250
+            indicator.name = "comboPhaseIndicator"
+            addChild(indicator)
+            
+            // 添加脉冲动画
+            let pulse = SKAction.sequence([
+                SKAction.scale(to: 1.1, duration: 0.5),
+                SKAction.scale(to: 1.0, duration: 0.5)
+            ])
+            indicator.run(SKAction.repeatForever(pulse))
+            
+            // 添加背景高亮
+            let background = SKShapeNode(rectOf: CGSize(width: 120, height: 25), cornerRadius: 12)
+            background.fillColor = SKColor(red: 1.0, green: 0.6, blue: 0.0, alpha: 0.2)
+            background.strokeColor = SKColor(red: 1.0, green: 0.6, blue: 0.0, alpha: 0.6)
+            background.lineWidth = 1
+            background.position = .zero
+            background.zPosition = -1
+            indicator.addChild(background)
+        }
+    }
+    
+    private func checkForContinuousMatches() {
+        // 检查是否还有可能的连消
+        visitedCache.removeAll(keepingCapacity: true)
+        var hasMatches = false
+        
+        for (key, sword) in grid {
+            if visitedCache.contains(key) { continue }
+            
+            let matches = findMatches(startNode: sword)
+            if matches.count >= currentLevel.rules.minMergeCount {
+                hasMatches = true
+                break
+            }
+        }
+        
+        if hasMatches {
+            // 还有连消，继续处理
+            checkForMatches()
+        } else {
+            // 没有更多连消，退出连消阶段
+            exitComboPhase()
+        }
+    }
     
     private func resetComboTimer() {
         comboTimer?.invalidate()
@@ -1777,6 +1914,10 @@ class GameScene: SKScene {
                 mergeLabel.fontColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0)
             }
         }
+        
+        // 更新时间和步数显示（考虑连消状态）
+        updateTimerDisplay()
+        updateMoveDisplay()
         
         // Energy bar
         let percentage = energy / GameConfig.maxEnergy
