@@ -2528,6 +2528,7 @@ class GameScene: SKScene {
         
         createGrid()
         setupLevelRules()
+        setupLevelConstraints()  // 重新设置时间和步数限制显示
         updateUI()  // 这里会显示累积的修为积分
         spawnInitialSwords()
         
@@ -2588,6 +2589,7 @@ class GameScene: SKScene {
         
         createGrid()
         setupLevelRules()
+        setupLevelConstraints()  // 重新设置时间和步数限制显示
         updateUI()  // 这里会显示累积的修为积分
         spawnInitialSwords()
         
