@@ -661,7 +661,7 @@ class GameScene: SKScene {
         scoreIcon.position = CGPoint(x: -40, y: -5)
         leftPanel.addChild(scoreIcon)
         
-        scoreLabel = SKLabelNode(text: "0")
+        scoreLabel = SKLabelNode(text: "\(GameStateManager.shared.cultivation)")
         scoreLabel.fontSize = 22
         scoreLabel.fontName = "PingFangSC-Bold"
         scoreLabel.fontColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0)
@@ -1911,9 +1911,10 @@ class GameScene: SKScene {
     }
     
     private func updateUI() {
-        // Score animation
+        // 显示累积修为积分而不是当前关卡分数
         let oldText = scoreLabel.text ?? "0"
-        scoreLabel.text = "\(score)"
+        let totalCultivation = GameStateManager.shared.cultivation + score  // 当前修为 + 本关得分
+        scoreLabel.text = "\(totalCultivation)"
         if scoreLabel.text != oldText {
             scoreLabel.run(SKAction.sequence([
                 SKAction.scale(to: 1.3, duration: 0.1),
@@ -2484,7 +2485,8 @@ class GameScene: SKScene {
         grid.removeAll()
         blockedCells.removeAll()
         
-        score = 0
+        // 重置当前关卡状态，但保留修为积分显示
+        score = 0  // 重置当前关卡分数
         energy = 0
         mergeCount = 0
         comboCount = 0
@@ -2526,7 +2528,7 @@ class GameScene: SKScene {
         
         createGrid()
         setupLevelRules()
-        updateUI()
+        updateUI()  // 这里会显示累积的修为积分
         spawnInitialSwords()
         
         // 显示新关卡的终极奥义提示
@@ -2536,8 +2538,63 @@ class GameScene: SKScene {
     }
     
     private func goToNextLevel() {
-        // 使用新的游戏状态管理系统进入下一关
-        restartGame()
+        // 进入下一关，保留修为积分
+        // 只重置游戏状态，不重置修为积分
+        grid.values.forEach { $0.removeFromParent() }
+        grid.removeAll()
+        blockedCells.removeAll()
+        
+        // 重置当前关卡状态，但保留修为积分显示
+        score = 0  // 重置当前关卡分数
+        energy = 0
+        mergeCount = 0
+        comboCount = 0
+        moveCount = 0
+        isGameOver = false
+        ultimatePatternHintShown = false
+        
+        // 重置成就追踪
+        maxCombo = 0
+        totalChainClears = 0
+        ultimateUsed = 0
+        perfectMerges = 0
+        shenSwordsMerged = 0
+        
+        // 清理交换状态
+        pendingSwap = nil
+        visitedCache.removeAll()
+        
+        gameTimer?.invalidate()
+        removeAction(forKey: "autoShuffle")
+        
+        // 清理关卡完成特效
+        effectsManager.clearLevelCompleteEffects()
+        
+        children.filter { $0.zPosition == 400 }.forEach { $0.removeFromParent() }
+        gridLayer.removeAllChildren()
+        
+        // 清理约束UI
+        timerLabel?.removeFromParent()
+        moveLabel?.removeFromParent()
+        timerLabel = nil
+        moveLabel = nil
+        
+        // 获取新的当前关卡
+        currentLevel = LevelConfig.shared.getCurrentLevel()
+        timeRemaining = currentLevel.rules.timeLimit ?? 0
+        
+        levelLabel.text = "第\(currentLevel.id)关 - \(currentLevel.name)"
+        goalLabel.text = "目标: \(currentLevel.targetScore)分 | \(currentLevel.targetMerges)次合成"
+        
+        createGrid()
+        setupLevelRules()
+        updateUI()  // 这里会显示累积的修为积分
+        spawnInitialSwords()
+        
+        // 显示新关卡的终极奥义提示
+        showUltimatePatternHint()
+        
+        effectsManager.playLevelStartEffect(levelName: currentLevel.name)
     }
     
     private func createButton(text: String, position: CGPoint) -> SKNode {

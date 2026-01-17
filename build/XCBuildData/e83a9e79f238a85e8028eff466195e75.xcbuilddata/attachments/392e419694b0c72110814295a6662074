@@ -1,0 +1,129 @@
+{
+  "" : {
+    "diagnostics" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/wjgz-primary.dia",
+    "emit-module-dependencies" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/wjgz-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/wjgz-primary-emit-module.dia",
+    "pch" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/wjgz-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/wjgz-primary.swiftdeps"
+  },
+  "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "const-values" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftconstvalues",
+    "dependencies" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/GeneratedAssetSymbols.d",
+    "diagnostics" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/GeneratedAssetSymbols.dia",
+    "index-unit-output-path" : "/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/GeneratedAssetSymbols.bc",
+    "object" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "swift-dependencies" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftdeps",
+    "swiftmodule" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/GeneratedAssetSymbols~partial.swiftmodule"
+  },
+  "/Users/vincent/Desktop/wjgz/wjgz/wjgz/AppDelegate.swift" : {
+    "const-values" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/AppDelegate.swiftconstvalues",
+    "dependencies" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/AppDelegate.d",
+    "diagnostics" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/AppDelegate.dia",
+    "index-unit-output-path" : "/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/AppDelegate.o",
+    "llvm-bc" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/AppDelegate.bc",
+    "object" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/AppDelegate.o",
+    "swift-dependencies" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/AppDelegate.swiftdeps",
+    "swiftmodule" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/AppDelegate~partial.swiftmodule"
+  },
+  "/Users/vincent/Desktop/wjgz/wjgz/wjgz/AudioTestHelper.swift" : {
+    "const-values" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/AudioTestHelper.swiftconstvalues",
+    "dependencies" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/AudioTestHelper.d",
+    "diagnostics" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/AudioTestHelper.dia",
+    "index-unit-output-path" : "/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/AudioTestHelper.o",
+    "llvm-bc" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/AudioTestHelper.bc",
+    "object" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/AudioTestHelper.o",
+    "swift-dependencies" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/AudioTestHelper.swiftdeps",
+    "swiftmodule" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/AudioTestHelper~partial.swiftmodule"
+  },
+  "/Users/vincent/Desktop/wjgz/wjgz/wjgz/Constants.swift" : {
+    "const-values" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/Constants.swiftconstvalues",
+    "dependencies" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/Constants.d",
+    "diagnostics" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/Constants.dia",
+    "index-unit-output-path" : "/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/Constants.o",
+    "llvm-bc" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/Constants.bc",
+    "object" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/Constants.o",
+    "swift-dependencies" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/Constants.swiftdeps",
+    "swiftmodule" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/Constants~partial.swiftmodule"
+  },
+  "/Users/vincent/Desktop/wjgz/wjgz/wjgz/EffectsManager.swift" : {
+    "const-values" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/EffectsManager.swiftconstvalues",
+    "dependencies" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/EffectsManager.d",
+    "diagnostics" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/EffectsManager.dia",
+    "index-unit-output-path" : "/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/EffectsManager.o",
+    "llvm-bc" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/EffectsManager.bc",
+    "object" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/EffectsManager.o",
+    "swift-dependencies" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/EffectsManager.swiftdeps",
+    "swiftmodule" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/EffectsManager~partial.swiftmodule"
+  },
+  "/Users/vincent/Desktop/wjgz/wjgz/wjgz/GameScene.swift" : {
+    "const-values" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/GameScene.swiftconstvalues",
+    "dependencies" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/GameScene.d",
+    "diagnostics" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/GameScene.dia",
+    "index-unit-output-path" : "/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/GameScene.o",
+    "llvm-bc" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/GameScene.bc",
+    "object" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/GameScene.o",
+    "swift-dependencies" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/GameScene.swiftdeps",
+    "swiftmodule" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/GameScene~partial.swiftmodule"
+  },
+  "/Users/vincent/Desktop/wjgz/wjgz/wjgz/GameViewController.swift" : {
+    "const-values" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/GameViewController.swiftconstvalues",
+    "dependencies" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/GameViewController.d",
+    "diagnostics" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/GameViewController.dia",
+    "index-unit-output-path" : "/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/GameViewController.o",
+    "llvm-bc" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/GameViewController.bc",
+    "object" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/GameViewController.o",
+    "swift-dependencies" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/GameViewController.swiftdeps",
+    "swiftmodule" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/GameViewController~partial.swiftmodule"
+  },
+  "/Users/vincent/Desktop/wjgz/wjgz/wjgz/LevelConfig.swift" : {
+    "const-values" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/LevelConfig.swiftconstvalues",
+    "dependencies" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/LevelConfig.d",
+    "diagnostics" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/LevelConfig.dia",
+    "index-unit-output-path" : "/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/LevelConfig.o",
+    "llvm-bc" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/LevelConfig.bc",
+    "object" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/LevelConfig.o",
+    "swift-dependencies" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/LevelConfig.swiftdeps",
+    "swiftmodule" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/LevelConfig~partial.swiftmodule"
+  },
+  "/Users/vincent/Desktop/wjgz/wjgz/wjgz/NewLevelConfig.swift" : {
+    "const-values" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/NewLevelConfig.swiftconstvalues",
+    "dependencies" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/NewLevelConfig.d",
+    "diagnostics" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/NewLevelConfig.dia",
+    "index-unit-output-path" : "/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/NewLevelConfig.o",
+    "llvm-bc" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/NewLevelConfig.bc",
+    "object" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/NewLevelConfig.o",
+    "swift-dependencies" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/NewLevelConfig.swiftdeps",
+    "swiftmodule" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/NewLevelConfig~partial.swiftmodule"
+  },
+  "/Users/vincent/Desktop/wjgz/wjgz/wjgz/SoundManager.swift" : {
+    "const-values" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/SoundManager.swiftconstvalues",
+    "dependencies" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/SoundManager.d",
+    "diagnostics" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/SoundManager.dia",
+    "index-unit-output-path" : "/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/SoundManager.o",
+    "llvm-bc" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/SoundManager.bc",
+    "object" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/SoundManager.o",
+    "swift-dependencies" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/SoundManager.swiftdeps",
+    "swiftmodule" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/SoundManager~partial.swiftmodule"
+  },
+  "/Users/vincent/Desktop/wjgz/wjgz/wjgz/Sword.swift" : {
+    "const-values" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/Sword.swiftconstvalues",
+    "dependencies" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/Sword.d",
+    "diagnostics" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/Sword.dia",
+    "index-unit-output-path" : "/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/Sword.o",
+    "llvm-bc" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/Sword.bc",
+    "object" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/Sword.o",
+    "swift-dependencies" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/Sword.swiftdeps",
+    "swiftmodule" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/Sword~partial.swiftmodule"
+  },
+  "/Users/vincent/Desktop/wjgz/wjgz/wjgz/SystemSoundHelper.swift" : {
+    "const-values" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/SystemSoundHelper.swiftconstvalues",
+    "dependencies" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/SystemSoundHelper.d",
+    "diagnostics" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/SystemSoundHelper.dia",
+    "index-unit-output-path" : "/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/SystemSoundHelper.o",
+    "llvm-bc" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/SystemSoundHelper.bc",
+    "object" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/SystemSoundHelper.o",
+    "swift-dependencies" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/SystemSoundHelper.swiftdeps",
+    "swiftmodule" : "/Users/vincent/Desktop/wjgz/wjgz/build/wjgz.build/Debug-iphoneos/wjgz.build/Objects-normal/arm64/SystemSoundHelper~partial.swiftmodule"
+  }
+}
