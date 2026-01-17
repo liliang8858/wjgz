@@ -1330,91 +1330,100 @@ class GameScene: SKScene {
     // MARK: - Auto Combo System (自动连续消除系统)
     
     private func triggerAutoCombo(times: Int, reason: String) {
-        // 显示自动连续消除界面
-        showAutoComboUI(times: times, reason: reason)
+        // 显示简洁的触发提示，不遮挡游戏画面
+        showAutoComboTrigger(times: times, reason: reason)
     }
     
-    private func showAutoComboUI(times: Int, reason: String) {
-        let overlay = SKShapeNode(rectOf: size)
-        overlay.fillColor = SKColor(white: 0, alpha: 0.8)
-        overlay.strokeColor = .clear
-        overlay.zPosition = 500
-        overlay.name = "autoComboOverlay"
-        addChild(overlay)
+    private func showAutoComboTrigger(times: Int, reason: String) {
+        // 在顶部显示简洁的触发提示
+        let triggerLabel = SKLabelNode(text: "🌟 \(reason) - 自动连消\(times)次 🌟")
+        triggerLabel.fontSize = 24
+        triggerLabel.fontName = "PingFangSC-Heavy"
+        triggerLabel.fontColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0)
+        triggerLabel.position = CGPoint(x: 0, y: size.height/2 - 50)
+        triggerLabel.zPosition = 300
+        triggerLabel.name = "autoComboTrigger"
+        addChild(triggerLabel)
         
-        // 主标题
-        let titleLabel = SKLabelNode(text: "🌟 \(reason) 🌟")
-        titleLabel.fontSize = 48
-        titleLabel.fontName = "PingFangSC-Heavy"
-        titleLabel.fontColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0)
-        titleLabel.position = CGPoint(x: 0, y: 150)
-        overlay.addChild(titleLabel)
-        
-        // 副标题
-        let subtitleLabel = SKLabelNode(text: "自动连续消除 \(times) 次")
-        subtitleLabel.fontSize = 32
-        subtitleLabel.fontName = "PingFangSC-Semibold"
-        subtitleLabel.fontColor = SKColor(red: 0.8, green: 0.6, blue: 1.0, alpha: 1.0)
-        subtitleLabel.position = CGPoint(x: 0, y: 100)
-        overlay.addChild(subtitleLabel)
-        
-        // 效果描述
-        let effectLabel = SKLabelNode(text: "剑阵自动移动，连续消除")
-        effectLabel.fontSize = 20
-        effectLabel.fontName = "PingFangSC-Regular"
-        effectLabel.fontColor = .white
-        effectLabel.position = CGPoint(x: 0, y: 60)
-        overlay.addChild(effectLabel)
-        
-        // 动画计数器
-        let counterLabel = SKLabelNode(text: "准备中...")
-        counterLabel.fontSize = 36
-        counterLabel.fontName = "PingFangSC-Heavy"
-        counterLabel.fontColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0)
-        counterLabel.position = CGPoint(x: 0, y: -50)
-        counterLabel.name = "comboCounter"
-        overlay.addChild(counterLabel)
-        
-        // 开始自动连续消除
-        startAutoComboSequence(times: times, overlay: overlay)
-    }
-    
-    private func startAutoComboSequence(times: Int, overlay: SKNode) {
-        let remainingTimes = times
-        let counterLabel = overlay.childNode(withName: "comboCounter") as? SKLabelNode
-        
-        // 延迟1秒开始
-        run(SKAction.sequence([
+        // 添加发光效果
+        triggerLabel.run(SKAction.sequence([
+            SKAction.group([
+                SKAction.scale(to: 1.2, duration: 0.3),
+                SKAction.fadeIn(withDuration: 0.3)
+            ]),
             SKAction.wait(forDuration: 1.0),
+            SKAction.group([
+                SKAction.scale(to: 1.0, duration: 0.2),
+                SKAction.fadeOut(withDuration: 0.5)
+            ]),
+            SKAction.removeFromParent()
+        ]))
+        
+        // 播放触发特效
+        effectsManager.playUltimateEffect()
+        
+        // 延迟0.5秒开始自动连续消除
+        run(SKAction.sequence([
+            SKAction.wait(forDuration: 0.5),
             SKAction.run { [weak self] in
-                self?.executeAutoComboStep(remainingTimes: remainingTimes, overlay: overlay, counterLabel: counterLabel)
+                self?.startAutoComboSequence(times: times)
             }
         ]))
     }
     
-    private func executeAutoComboStep(remainingTimes: Int, overlay: SKNode, counterLabel: SKLabelNode?) {
+    private func startAutoComboSequence(times: Int) {
+        executeAutoComboStep(remainingTimes: times, currentStep: 1)
+    }
+    
+    private func executeAutoComboStep(remainingTimes: Int, currentStep: Int) {
         guard remainingTimes > 0 else {
             // 完成所有自动消除
-            finishAutoCombo(overlay: overlay)
+            finishAutoCombo()
             return
         }
         
-        counterLabel?.text = "第 \(4 - remainingTimes) 次消除"
-        counterLabel?.run(SKAction.sequence([
-            SKAction.scale(to: 1.3, duration: 0.2),
-            SKAction.scale(to: 1.0, duration: 0.2)
-        ]))
+        // 在右上角显示当前进度，不遮挡主要游戏区域
+        showComboProgress(currentStep: currentStep, totalSteps: 3)
         
         // 执行一次自动消除
         performAutoComboMove { [weak self] in
             // 等待消除动画完成后继续下一次
             self?.run(SKAction.sequence([
-                SKAction.wait(forDuration: 1.5),
+                SKAction.wait(forDuration: 1.2),
                 SKAction.run {
-                    self?.executeAutoComboStep(remainingTimes: remainingTimes - 1, overlay: overlay, counterLabel: counterLabel)
+                    self?.executeAutoComboStep(remainingTimes: remainingTimes - 1, currentStep: currentStep + 1)
                 }
             ]))
         }
+    }
+    
+    private func showComboProgress(currentStep: Int, totalSteps: Int) {
+        // 移除之前的进度显示
+        childNode(withName: "comboProgress")?.removeFromParent()
+        
+        // 在右上角显示进度
+        let progressLabel = SKLabelNode(text: "连消 \(currentStep)/\(totalSteps)")
+        progressLabel.fontSize = 18
+        progressLabel.fontName = "PingFangSC-Semibold"
+        progressLabel.fontColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0)
+        progressLabel.position = CGPoint(x: size.width/2 - 80, y: size.height/2 - 80)
+        progressLabel.zPosition = 250
+        progressLabel.name = "comboProgress"
+        addChild(progressLabel)
+        
+        // 添加背景
+        let progressBg = SKShapeNode(rectOf: CGSize(width: 100, height: 30), cornerRadius: 15)
+        progressBg.fillColor = SKColor(white: 0.1, alpha: 0.8)
+        progressBg.strokeColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 0.6)
+        progressBg.lineWidth = 1
+        progressBg.zPosition = -1
+        progressLabel.addChild(progressBg)
+        
+        // 进度动画
+        progressLabel.run(SKAction.sequence([
+            SKAction.scale(to: 1.3, duration: 0.2),
+            SKAction.scale(to: 1.0, duration: 0.2)
+        ]))
     }
     
     private func performAutoComboMove(completion: @escaping () -> Void) {
@@ -1496,20 +1505,26 @@ class GameScene: SKScene {
         grid[toKey] = sword
         sword.gridPosition = move.to
         
-        // 播放移动动画
+        // 播放移动动画 - 更加华丽和明显
         let targetPoint = hexToPixel(q: move.to.q, r: move.to.r)
         
-        // 高亮显示移动的剑
+        // 创建移动轨迹特效
+        createMoveTrail(from: sword.position, to: targetPoint)
+        
+        // 高亮显示移动的剑 - 更加醒目
         sword.run(SKAction.sequence([
             SKAction.group([
-                SKAction.scale(to: 1.3, duration: 0.2),
-                SKAction.colorize(with: .yellow, colorBlendFactor: 0.5, duration: 0.2)
+                SKAction.scale(to: 1.5, duration: 0.3),
+                SKAction.colorize(with: .yellow, colorBlendFactor: 0.8, duration: 0.3)
             ]),
             SKAction.group([
-                SKAction.move(to: targetPoint, duration: 0.5),
-                SKAction.scale(to: 1.0, duration: 0.3)
+                SKAction.move(to: targetPoint, duration: 0.6),
+                SKAction.scale(to: 1.2, duration: 0.4)
             ]),
-            SKAction.colorize(with: .clear, colorBlendFactor: 0.0, duration: 0.2),
+            SKAction.group([
+                SKAction.scale(to: 1.0, duration: 0.2),
+                SKAction.colorize(with: .clear, colorBlendFactor: 0.0, duration: 0.2)
+            ]),
             SKAction.run {
                 completion()
             }
@@ -1517,6 +1532,28 @@ class GameScene: SKScene {
         
         // 播放移动特效
         effectsManager.playTapRipple(at: targetPoint)
+    }
+    
+    private func createMoveTrail(from startPoint: CGPoint, to endPoint: CGPoint) {
+        // 创建移动轨迹粒子效果
+        let trail = SKShapeNode()
+        let path = CGMutablePath()
+        path.move(to: startPoint)
+        path.addLine(to: endPoint)
+        trail.path = path
+        trail.strokeColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 0.8)
+        trail.lineWidth = 4
+        trail.glowWidth = 8
+        trail.zPosition = 150
+        addChild(trail)
+        
+        // 轨迹动画
+        trail.run(SKAction.sequence([
+            SKAction.fadeIn(withDuration: 0.2),
+            SKAction.wait(forDuration: 0.4),
+            SKAction.fadeOut(withDuration: 0.3),
+            SKAction.removeFromParent()
+        ]))
     }
     
     private func createAutoComboOpportunity(completion: @escaping () -> Void) {
@@ -1545,28 +1582,40 @@ class GameScene: SKScene {
         }
     }
     
-    private func finishAutoCombo(overlay: SKNode) {
-        // 显示完成效果
+    private func finishAutoCombo() {
+        // 移除进度显示
+        childNode(withName: "comboProgress")?.removeFromParent()
+        
+        // 在中央显示完成提示，但很快消失
         let successLabel = SKLabelNode(text: "🎉 连续消除完成！🎉")
-        successLabel.fontSize = 36
+        successLabel.fontSize = 28
         successLabel.fontName = "PingFangSC-Heavy"
         successLabel.fontColor = SKColor(red: 0.2, green: 1.0, blue: 0.2, alpha: 1.0)
-        successLabel.position = CGPoint(x: 0, y: -50)
-        overlay.addChild(successLabel)
+        successLabel.position = CGPoint(x: 0, y: 0)
+        successLabel.zPosition = 300
+        addChild(successLabel)
+        
+        // 快速显示和消失，不影响游戏体验
+        successLabel.run(SKAction.sequence([
+            SKAction.group([
+                SKAction.scale(to: 1.3, duration: 0.3),
+                SKAction.fadeIn(withDuration: 0.3)
+            ]),
+            SKAction.wait(forDuration: 0.8),
+            SKAction.group([
+                SKAction.scale(to: 0.8, duration: 0.2),
+                SKAction.fadeOut(withDuration: 0.3)
+            ]),
+            SKAction.removeFromParent()
+        ]))
         
         // 播放完成特效
         effectsManager.playUltimateEffect()
         
-        // 延迟后关闭界面
+        // 延迟后补充剑阵
         run(SKAction.sequence([
-            SKAction.wait(forDuration: 2.0),
+            SKAction.wait(forDuration: 1.0),
             SKAction.run { [weak self] in
-                overlay.run(SKAction.sequence([
-                    SKAction.fadeOut(withDuration: 0.5),
-                    SKAction.removeFromParent()
-                ]))
-                
-                // 补充剑阵
                 self?.replenishSwords()
             }
         ]))
