@@ -31,6 +31,16 @@ class GameScene: SKScene {
     private var originalGridIndex: (q: Int, r: Int)?
     private var lastDragPosition: CGPoint?
     
+    // MARK: - Swap State
+    private var pendingSwap: SwapOperation?
+    
+    struct SwapOperation {
+        let sword1: Sword
+        let sword2: Sword
+        let originalPos1: (q: Int, r: Int)
+        let originalPos2: (q: Int, r: Int)
+    }
+    
     // MARK: - Game State
     private var energy: CGFloat = 0
     private var score: Int = 0
@@ -43,6 +53,9 @@ class GameScene: SKScene {
     private var currentLevel: Level!
     private var isGameOver: Bool = false
     private var ultimatePatternHintShown: Bool = false  // 是否已显示终极奥义提示
+    
+    // MARK: - Performance Optimization
+    private var visitedCache = Set<String>()  // 复用的visited集合
     
     // MARK: - Achievement Tracking
     private var maxCombo: Int = 0
@@ -98,6 +111,14 @@ class GameScene: SKScene {
         if !GameStateManager.shared.tutorialCompleted {
             showTutorial()
         }
+        
+        // 监听神剑合成通知
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleDivineSwordMerge),
+            name: NSNotification.Name("DivineSwordMerged"),
+            object: nil
+        )
     }
     
     // MARK: - Audio Setup
@@ -108,7 +129,7 @@ class GameScene: SKScene {
         SoundManager.shared.setMusicVolume(0.05)  // 背景音乐 5%
         SoundManager.shared.setSFXVolume(0.7)     // 音效 70%
         
-        // 播放背景音乐 (已关闭)
+        // 播放背景音乐
         // SoundManager.shared.playBackgroundMusic("background_main")
         
         print("🎵 音效系统已初始化")
@@ -651,23 +672,33 @@ class GameScene: SKScene {
     private func setupLevelConstraints() {
         let rules = currentLevel.rules
         
+        // 清理之前的约束UI
+        timerLabel?.removeFromParent()
+        moveLabel?.removeFromParent()
+        timerLabel = nil
+        moveLabel = nil
+        
+        var constraintY: CGFloat = size.height/2 - 175
+        
         // 时间限制显示
-        if rules.timeLimit != nil {
+        if let timeLimit = rules.timeLimit {
+            timeRemaining = timeLimit
             timerLabel = SKLabelNode(text: "⏱ \(Int(timeRemaining))s")
-            timerLabel?.fontSize = 24
+            timerLabel?.fontSize = 20
             timerLabel?.fontName = "PingFangSC-Bold"
             timerLabel?.fontColor = .white
-            timerLabel?.position = CGPoint(x: 0, y: size.height/2 - 175)
+            timerLabel?.position = CGPoint(x: -80, y: constraintY)
             uiLayer.addChild(timerLabel!)
         }
         
         // 步数限制显示
         if let moveLimit = rules.moveLimit {
+            let xPosition: CGFloat = rules.timeLimit != nil ? 80 : 0  // 如果有时间限制，放右边
             moveLabel = SKLabelNode(text: "👆 \(moveLimit - moveCount)步")
-            moveLabel?.fontSize = 24
+            moveLabel?.fontSize = 20
             moveLabel?.fontName = "PingFangSC-Bold"
             moveLabel?.fontColor = .white
-            moveLabel?.position = CGPoint(x: 0, y: size.height/2 - 175)
+            moveLabel?.position = CGPoint(x: xPosition, y: constraintY)
             uiLayer.addChild(moveLabel!)
         }
     }
@@ -676,6 +707,17 @@ class GameScene: SKScene {
         timerLabel?.text = "⏱ \(Int(timeRemaining))s"
         if timeRemaining <= 10 {
             timerLabel?.fontColor = .red
+        }
+    }
+    
+    private func updateMoveDisplay() {
+        if let moveLimit = currentLevel.rules.moveLimit {
+            let remaining = moveLimit - moveCount
+            moveLabel?.text = "👆 \(remaining)步"
+            
+            if remaining <= 5 {
+                moveLabel?.fontColor = .red
+            }
         }
     }
     
@@ -821,6 +863,9 @@ class GameScene: SKScene {
         let gridIndex = pixelToHex(point: location)
         handleDrop(sword: sword, at: gridIndex)
         
+        // 重置zPosition
+        sword.zPosition = 20
+        
         draggedSword = nil
         originalPosition = nil
         originalGridIndex = nil
@@ -870,10 +915,9 @@ class GameScene: SKScene {
         
         if let moveLimit = currentLevel.rules.moveLimit {
             let remaining = moveLimit - moveCount
-            moveLabel?.text = "👆 \(remaining)步"
+            updateMoveDisplay()
             
             if remaining <= 5 {
-                moveLabel?.fontColor = .red
                 effectsManager.flashScreen(color: .red, duration: 0.1)
             }
             
@@ -887,6 +931,14 @@ class GameScene: SKScene {
         let pos1 = sword1.gridPosition
         let pos2 = sword2.gridPosition
         
+        // 记录交换操作，用于可能的回退
+        pendingSwap = SwapOperation(
+            sword1: sword1,
+            sword2: sword2,
+            originalPos1: pos1,
+            originalPos2: pos2
+        )
+        
         grid["\(pos1.q)_\(pos1.r)"] = sword2
         grid["\(pos2.q)_\(pos2.r)"] = sword1
         
@@ -898,6 +950,10 @@ class GameScene: SKScene {
             SKAction.scale(to: 1.0, duration: 0.1)
         ]))
         sword2.run(SKAction.move(to: hexToPixel(q: pos1.q, r: pos1.r), duration: 0.2))
+        
+        // 重置zPosition
+        sword1.zPosition = 20
+        sword2.zPosition = 20
     }
     
     private func moveSword(_ sword: Sword, to index: (Int, Int)) {
@@ -912,6 +968,12 @@ class GameScene: SKScene {
             SKAction.move(to: hexToPixel(q: index.0, r: index.1), duration: 0.2),
             SKAction.scale(to: 1.0, duration: 0.1)
         ]))
+        
+        // 重置zPosition
+        sword.zPosition = 20
+        
+        // 清除待处理的交换操作
+        pendingSwap = nil
     }
     
     private func returnToOriginalPosition(_ sword: Sword) {
@@ -920,19 +982,62 @@ class GameScene: SKScene {
                 SKAction.move(to: pos, duration: 0.2),
                 SKAction.scale(to: 1.0, duration: 0.1)
             ]))
+            // 重置zPosition
+            sword.zPosition = 20
             effectsManager.shakeScreen(intensity: .light)
         }
+    }
+    
+    private func revertSwap(_ swap: SwapOperation) {
+        // 回退交换操作
+        let sword1 = swap.sword1
+        let sword2 = swap.sword2
+        let pos1 = swap.originalPos1
+        let pos2 = swap.originalPos2
+        
+        // 恢复网格状态
+        grid["\(pos1.q)_\(pos1.r)"] = sword1
+        grid["\(pos2.q)_\(pos2.r)"] = sword2
+        
+        // 恢复剑的位置
+        sword1.gridPosition = pos1
+        sword2.gridPosition = pos2
+        
+        // 播放回退动画
+        sword1.run(SKAction.group([
+            SKAction.move(to: hexToPixel(q: pos1.q, r: pos1.r), duration: 0.3),
+            SKAction.scale(to: 1.0, duration: 0.1)
+        ]))
+        sword2.run(SKAction.group([
+            SKAction.move(to: hexToPixel(q: pos2.q, r: pos2.r), duration: 0.3),
+            SKAction.scale(to: 1.0, duration: 0.1)
+        ]))
+        
+        // 重置zPosition
+        sword1.zPosition = 20
+        sword2.zPosition = 20
+        
+        // 恢复步数（如果有步数限制）
+        if currentLevel.rules.moveLimit != nil {
+            moveCount = max(0, moveCount - 1)
+            updateMoveDisplay()
+        }
+        
+        // 显示反馈
+        effectsManager.showFeedbackText("无消除", at: CGPoint(x: 0, y: 0), style: .normal)
+        effectsManager.shakeScreen(intensity: .light)
+        SoundManager.shared.playError()
     }
     
     // MARK: - Match Logic
     
     private func checkForMatches() {
-        var visited = Set<String>()
+        visitedCache.removeAll(keepingCapacity: true)  // 复用集合，减少内存分配
         var hadMatches = false
         var totalMatchCount = 0
         
         for (key, sword) in grid {
-            if visited.contains(key) { continue }
+            if visitedCache.contains(key) { continue }
             
             let matches = findMatches(startNode: sword)
             if matches.count >= currentLevel.rules.minMergeCount {
@@ -940,7 +1045,7 @@ class GameScene: SKScene {
                 hadMatches = true
                 totalMatchCount += matches.count
                 for m in matches {
-                    visited.insert("\(m.gridPosition.q)_\(m.gridPosition.r)")
+                    visitedCache.insert("\(m.gridPosition.q)_\(m.gridPosition.r)")
                 }
             }
         }
@@ -958,6 +1063,11 @@ class GameScene: SKScene {
             ]))
         } else {
             resetCombo()
+            // 如果是交换操作且没有消除，回退交换
+            if let lastSwap = pendingSwap {
+                revertSwap(lastSwap)
+                pendingSwap = nil
+            }
         }
     }
     
@@ -2166,7 +2276,50 @@ class GameScene: SKScene {
         GameStateManager.shared.tutorialCompleted = true
     }
     
-    // MARK: - Game Control
+    // MARK: - Divine Sword Special Effects
+    
+    @objc private func handleDivineSwordMerge(_ notification: Notification) {
+        guard let sword = notification.object as? Sword else { return }
+        
+        // 神剑合成触发特殊奖励
+        let bonusScore = 1000
+        addScore(bonusScore)
+        
+        // 特殊效果：清除周围所有剑
+        let neighbors = getNeighbors(q: sword.gridPosition.q, r: sword.gridPosition.r)
+        for nPos in neighbors {
+            let key = "\(nPos.q)_\(nPos.r)"
+            if let neighborSword = grid[key] {
+                removeSword(neighborSword)
+                addScore(50)
+            }
+        }
+        
+        // 播放特殊特效
+        let swordPos = hexToPixel(q: sword.gridPosition.q, r: sword.gridPosition.r)
+        effectsManager.playDivineSwordEffect(at: swordPos)
+        effectsManager.showFeedbackText("神剑归宗！+\(bonusScore)", at: swordPos, style: .legendary)
+        
+        // 增加大量能量
+        addEnergy(50)
+        
+        // 记录成就
+        GameStateManager.shared.recordMerge(type: .shen, combo: comboCount)
+        
+        updateUI()
+        
+        // 延迟补充剑阵
+        run(SKAction.sequence([
+            SKAction.wait(forDuration: 1.0),
+            SKAction.run { [weak self] in
+                self?.replenishSwords()
+            }
+        ]))
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
     
     private func restartGame() {
         grid.values.forEach { $0.removeFromParent() }
@@ -2188,6 +2341,10 @@ class GameScene: SKScene {
         perfectMerges = 0
         shenSwordsMerged = 0
         
+        // 清理交换状态
+        pendingSwap = nil
+        visitedCache.removeAll()
+        
         gameTimer?.invalidate()
         removeAction(forKey: "autoShuffle")
         
@@ -2196,6 +2353,12 @@ class GameScene: SKScene {
         
         children.filter { $0.zPosition == 400 }.forEach { $0.removeFromParent() }
         gridLayer.removeAllChildren()
+        
+        // 清理约束UI
+        timerLabel?.removeFromParent()
+        moveLabel?.removeFromParent()
+        timerLabel = nil
+        moveLabel = nil
         
         currentLevel = LevelConfig.shared.getCurrentLevel()
         timeRemaining = currentLevel.rules.timeLimit ?? 0

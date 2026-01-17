@@ -99,6 +99,12 @@ class Sword: SKSpriteNode {
     }
     
     func upgrade() {
+        // 如果已经是神剑，触发特殊效果而不是升级
+        if self.type == .shen {
+            triggerDivineSwordMerge()
+            return
+        }
+        
         guard let newType = SwordType(rawValue: self.type.rawValue + 1) else { return }
         
         self.type = newType
@@ -116,6 +122,42 @@ class Sword: SKSpriteNode {
         }
         
         self.run(SKAction.sequence([scaleUp, flash, burst, scaleDown]))
+    }
+    
+    private func triggerDivineSwordMerge() {
+        // 神剑合成触发特殊效果
+        let flash = SKAction.run { [weak self] in
+            self?.createDivineFlash()
+        }
+        
+        let scaleUp = SKAction.scale(to: 1.5, duration: 0.2)
+        let scaleDown = SKAction.scale(to: 1.0, duration: 0.2)
+        
+        self.run(SKAction.sequence([scaleUp, flash, scaleDown]))
+        
+        // 通知场景触发特殊奖励
+        NotificationCenter.default.post(
+            name: NSNotification.Name("DivineSwordMerged"),
+            object: self
+        )
+    }
+    
+    private func createDivineFlash() {
+        // 创建神剑合成的特殊光效
+        let flash = SKShapeNode(circleOfRadius: 60)
+        flash.fillColor = UIColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 0.8)
+        flash.strokeColor = .white
+        flash.lineWidth = 3
+        flash.position = .zero
+        flash.zPosition = 10
+        flash.blendMode = .add
+        addChild(flash)
+        
+        flash.run(SKAction.sequence([
+            SKAction.scale(to: 2.0, duration: 0.3),
+            SKAction.fadeOut(withDuration: 0.3),
+            SKAction.removeFromParent()
+        ]))
     }
     
     private func createUpgradeParticles() {
