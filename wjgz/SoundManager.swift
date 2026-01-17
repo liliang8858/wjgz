@@ -70,16 +70,16 @@ class SoundManager {
     
     /// 加载音效文件
     private func loadSound(_ name: String) -> AVAudioPlayer? {
-        // 尝试从不同路径加载，包括子文件夹
+        // 尝试从不同路径加载，包括子文件夹和根目录
         let possiblePaths = [
+            name,  // 首先尝试根目录（Xcode自动同步时的位置）
             "Sounds/SFX/UI/\(name)",
             "Sounds/SFX/Sword/\(name)",
             "Sounds/SFX/Merge/\(name)",
             "Sounds/SFX/Effects/\(name)",
             "Sounds/SFX/Ultimate/\(name)",
             "Sounds/SFX/\(name)",
-            "Sounds/\(name)",
-            name
+            "Sounds/\(name)"
         ]
         
         // 支持多种音频格式
@@ -116,6 +116,13 @@ class SoundManager {
             return 
         }
         
+        // 优先使用系统音效，确保有声音
+        if let systemSound = fallbackSystemSound {
+            AudioServicesPlaySystemSound(systemSound)
+            print("🔔 播放系统音效: \(systemSound)")
+            return
+        }
+        
         // 尝试播放自定义音效
         if let player = getAvailablePlayer(for: name) {
             player.currentTime = 0
@@ -125,13 +132,7 @@ class SoundManager {
             return
         }
         
-        // 如果没有自定义音效，使用系统音效
-        if let systemSound = fallbackSystemSound {
-            AudioServicesPlaySystemSound(systemSound)
-            print("🔔 播放系统音效: \(systemSound)")
-        } else {
-            print("⚠️ 音效文件未找到: \(name)")
-        }
+        print("⚠️ 音效文件未找到: \(name)")
     }
     
     /// 播放合成音效（音量较低）

@@ -165,12 +165,16 @@ class EffectsManager {
             switch type {
             case .fan:
                 SoundManager.shared.playMergeFan()
+                SystemSoundHelper.shared.playMerge() // 备用系统音效
             case .ling:
                 SoundManager.shared.playMergeLing()
+                SystemSoundHelper.shared.playMerge() // 备用系统音效
             case .xian:
                 SoundManager.shared.playMergeXian()
+                SystemSoundHelper.shared.playMerge() // 备用系统音效
             case .shen:
                 SoundManager.shared.playMergeShen()
+                SystemSoundHelper.shared.playMerge() // 备用系统音效
             }
         }
     }
@@ -608,6 +612,7 @@ class EffectsManager {
         
         // 音效
         SoundManager.shared.playMergeShen()
+        SystemSoundHelper.shared.playMerge() // 备用系统音效
         
         // 1. 天降神光
         let lightBeam = SKShapeNode(rectOf: CGSize(width: 60, height: scene.size.height * 2))

@@ -129,6 +129,9 @@ class GameScene: SKScene {
     
     /// 初始化音效系统
     private func setupAudio() {
+        // 启用系统音效辅助工具
+        SystemSoundHelper.shared.setEnabled(true)
+        
         // 确保音效系统启用
         SoundManager.shared.setEnabled(true)
         
@@ -139,13 +142,13 @@ class GameScene: SKScene {
         // 播放背景音乐 (已关闭)
         // SoundManager.shared.playBackgroundMusic("background_main")
         
-        // 测试音效系统
-        #if DEBUG
-        AudioTestHelper.shared.testAllSoundFiles()
-        AudioTestHelper.shared.testSoundPlayback()
-        #endif
+        // 直接测试系统音效
+        print("🔊 测试系统音效...")
+        SystemSoundHelper.shared.playTap()
         
-        print("🎵 音效系统已初始化，音效启用状态: \(SoundManager.shared.isEnabled)")
+
+        
+        print("🎵 音效系统已初始化")
     }
     
     // MARK: - Setup
@@ -697,7 +700,7 @@ class GameScene: SKScene {
         timerLabel = nil
         moveLabel = nil
         
-        var constraintY: CGFloat = size.height/2 - 175
+        let constraintY: CGFloat = size.height/2 - 175
         
         // 时间限制显示
         if let timeLimit = rules.timeLimit {
@@ -853,8 +856,12 @@ class GameScene: SKScene {
         // 点击涟漪特效
         effectsManager.playTapRipple(at: location)
         
-        // 测试音效播放
-        print("🔊 触摸开始，播放点击音效")
+        // 直接播放系统音效确保有声音
+        print("🔊 触摸开始，播放系统点击音效")
+        SystemSoundHelper.shared.playTap()
+        
+        // 同时尝试播放自定义音效
+        print("🔊 尝试播放自定义点击音效")
         SoundManager.shared.playTap()
         
         for node in nodes {
@@ -1069,6 +1076,7 @@ class GameScene: SKScene {
         effectsManager.showFeedbackText("无消除", at: CGPoint(x: 0, y: 0), style: .normal)
         effectsManager.shakeScreen(intensity: .light)
         SoundManager.shared.playError()
+        SystemSoundHelper.shared.playError() // 备用系统音效
     }
     
     // MARK: - Match Logic
@@ -1158,6 +1166,13 @@ class GameScene: SKScene {
         
         // 音效反馈
         SoundManager.shared.playFeedback(for: count)
+        
+        // 备用系统音效
+        if count >= 5 {
+            SystemSoundHelper.shared.playCombo()
+        } else if count >= 3 {
+            SystemSoundHelper.shared.playSuccess()
+        }
     }
     
     private func findMatches(startNode: Sword) -> [Sword] {
@@ -1891,6 +1906,7 @@ class GameScene: SKScene {
             effectsManager.startEnergyFullPulse(around: ultimateButton)
             effectsManager.showFeedbackText("剑意已满!", at: CGPoint(x: 0, y: -100), style: .perfect)
             SoundManager.shared.playEnergyFull()
+            SystemSoundHelper.shared.playSuccess() // 备用系统音效
         }
     }
     
@@ -2308,6 +2324,7 @@ class GameScene: SKScene {
         
         // 音效
         SoundManager.shared.playGameOver()
+        SystemSoundHelper.shared.playError() // 备用系统音效
         
         // 使用新的失败处理机制
         GameStateManager.shared.failLevel(currentLevel.id)
