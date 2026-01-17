@@ -191,6 +191,9 @@ class GameStateManager {
     // MARK: - Level Management
     
     func completeLevel(_ levelId: Int, stars: Int, score: Int) {
+        print("🔍 completeLevel: 开始处理关卡完成，levelId=\(levelId)")
+        print("🔍 completeLevel: 完成前 currentLevel=\(currentLevel)")
+        
         // 增加修为
         let cultivationGain = calculateCultivationGain(levelId: levelId, stars: stars, score: score)
         cultivation += cultivationGain
@@ -199,14 +202,19 @@ class GameStateManager {
         let nextLevel = levelId + 1
         if nextLevel <= LevelConfig.shared.levels.count {
             unlockedLevels.insert(nextLevel)
+            print("🔍 completeLevel: 解锁关卡 \(nextLevel)")
         }
         
         // 更新当前关卡
         if levelId >= currentLevel {
             currentLevel = nextLevel
+            print("🔍 completeLevel: 更新 currentLevel 为 \(currentLevel)")
+        } else {
+            print("🔍 completeLevel: 不更新 currentLevel，因为 \(levelId) < \(currentLevel)")
         }
         
         saveGameState()
+        print("🔍 completeLevel: 保存游戏状态完成")
         print("🎉 关卡 \(levelId) 完成！获得修为: \(cultivationGain)，总修为: \(cultivation)")
     }
     
@@ -308,7 +316,9 @@ class GameStateManager {
             "ultimateCount": ultimateCount,
             "maxCombo": maxCombo
         ]
+        print("🔍 saveGameState: 准备保存状态 currentLevel=\(currentLevel)")
         UserDefaults.standard.set(state, forKey: storageKey)
+        print("🔍 saveGameState: 状态保存完成")
         
         if let swordData = try? JSONEncoder().encode(swordCollection) {
             UserDefaults.standard.set(swordData, forKey: "\(storageKey)_swords")
@@ -319,6 +329,7 @@ class GameStateManager {
     }
     
     private func loadGameState() {
+        print("🔍 loadGameState: 开始加载游戏状态")
         if let state = UserDefaults.standard.dictionary(forKey: storageKey) {
             currentLevel = state["currentLevel"] as? Int ?? 1
             cultivation = state["cultivation"] as? Int ?? 0
@@ -328,10 +339,14 @@ class GameStateManager {
             }
             ultimateCount = state["ultimateCount"] as? Int ?? 0
             maxCombo = state["maxCombo"] as? Int ?? 0
+            print("🔍 loadGameState: 加载成功 currentLevel=\(currentLevel), cultivation=\(cultivation)")
+        } else {
+            print("🔍 loadGameState: 没有找到保存的状态，使用默认值")
         }
         
         // Ensure current level is unlocked
         unlockedLevels.insert(currentLevel)
+        print("🔍 loadGameState: 确保当前关卡已解锁，unlockedLevels=\(unlockedLevels)")
         
         if let swordData = UserDefaults.standard.data(forKey: "\(storageKey)_swords"),
            let swords = try? JSONDecoder().decode([SwordData].self, from: swordData) {

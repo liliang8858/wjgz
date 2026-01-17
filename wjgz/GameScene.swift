@@ -661,16 +661,19 @@ class GameScene: SKScene {
     }
     
     private func setupScorePanel() {
-        // Left panel - Score
-        let leftPanel = createGlassPanel(size: CGSize(width: 120, height: 60))
-        leftPanel.position = CGPoint(x: -size.width/2 + 75, y: -size.height/2 + 130)
+        // Left panel - Score (修为面板) - 作为基准位置
+        let baseY = -size.height/2 + 110  // 基准Y坐标
+        let panelHeight: CGFloat = 90     // 统一面板高度
+        
+        let leftPanel = createGlassPanel(size: CGSize(width: 140, height: panelHeight))
+        leftPanel.position = CGPoint(x: -size.width/2 + 85, y: baseY)
         uiLayer.addChild(leftPanel)
         
         let scoreIcon = SKLabelNode(text: "修")
         scoreIcon.fontSize = 18
         scoreIcon.fontName = "PingFangSC-Bold"
         scoreIcon.fontColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0)
-        scoreIcon.position = CGPoint(x: -40, y: -5)
+        scoreIcon.position = CGPoint(x: -50, y: 15)  // 调整到面板上部
         leftPanel.addChild(scoreIcon)
         
         scoreLabel = SKLabelNode(text: "\(GameStateManager.shared.cultivation)")
@@ -678,12 +681,12 @@ class GameScene: SKScene {
         scoreLabel.fontName = "PingFangSC-Bold"
         scoreLabel.fontColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0)
         scoreLabel.horizontalAlignmentMode = .left
-        scoreLabel.position = CGPoint(x: -20, y: -8)
+        scoreLabel.position = CGPoint(x: -25, y: 12)  // 调整到面板上部
         leftPanel.addChild(scoreLabel)
         
-        // Right panel - Merge count with Ultimate Pattern (融合终极奥义显示)
-        let rightPanel = createGlassPanel(size: CGSize(width: 120, height: 90))  // 增加高度容纳终极奥义
-        rightPanel.position = CGPoint(x: size.width/2 - 75, y: -size.height/2 + 145)  // 稍微上移
+        // Right panel - Merge count with Ultimate Pattern (阵法面板) - 与左面板对齐
+        let rightPanel = createGlassPanel(size: CGSize(width: 140, height: panelHeight))  // 相同高度
+        rightPanel.position = CGPoint(x: size.width/2 - 85, y: baseY)  // 相同Y坐标
         rightPanel.name = "rightPanel"
         uiLayer.addChild(rightPanel)
         
@@ -691,7 +694,7 @@ class GameScene: SKScene {
         mergeIcon.fontSize = 18
         mergeIcon.fontName = "PingFangSC-Bold"
         mergeIcon.fontColor = SKColor(red: 0.2, green: 0.9, blue: 0.7, alpha: 1.0)
-        mergeIcon.position = CGPoint(x: -40, y: 15)  // 上移
+        mergeIcon.position = CGPoint(x: -50, y: 15)  // 与左面板图标对齐
         rightPanel.addChild(mergeIcon)
         
         let mergeLabel = SKLabelNode(text: "0/\(currentLevel.targetMerges)")
@@ -699,7 +702,7 @@ class GameScene: SKScene {
         mergeLabel.fontName = "PingFangSC-Bold"
         mergeLabel.fontColor = SKColor(red: 0.2, green: 0.9, blue: 0.7, alpha: 1.0)
         mergeLabel.horizontalAlignmentMode = .left
-        mergeLabel.position = CGPoint(x: -20, y: 12)  // 上移
+        mergeLabel.position = CGPoint(x: -25, y: 12)  // 与左面板数值对齐
         mergeLabel.name = "mergeLabel"
         rightPanel.addChild(mergeLabel)
         
@@ -784,7 +787,7 @@ class GameScene: SKScene {
     private func setupEnergyBar() {
         let barWidth: CGFloat = 200
         let barHeight: CGFloat = 16
-        let barY = -size.height/2 + 185
+        let barY = -size.height/2 + 165  // 向上移动20像素，避免与面板重叠
         
         let energyLabel = SKLabelNode(text: "剑意")
         energyLabel.fontSize = 12
@@ -855,16 +858,25 @@ class GameScene: SKScene {
         
         // 优先处理 UI 按钮（即使游戏结束也要响应）
         let nodes = nodes(at: location)
+        
+        // 按优先级顺序检查按钮，确保下一关按钮优先于重新挑战按钮
         for node in nodes {
-            // 处理关卡完成界面按钮
             if node.name == "nextLevelBtn" {
+                print("🔍 点击了下一关按钮")
                 goToNextLevel()
                 return
             }
+        }
+        
+        for node in nodes {
             if node.name == "restartBtn" {
+                print("🔍 点击了重新挑战按钮")
                 restartGame()
                 return
             }
+        }
+        
+        for node in nodes {
             if node.name == "skipTutorial" {
                 skipTutorial()
                 return
@@ -2025,26 +2037,27 @@ class GameScene: SKScene {
         removeAction(forKey: "autoShuffle")
         
         let stars = currentLevel.calculateStars(score: score)
+        let completedLevelId = currentLevel.id  // 保存完成的关卡ID
         
         // 庆祝特效
         effectsManager.playLevelCompleteEffect(stars: stars)
         
         // 使用新的游戏状态管理系统
-        GameStateManager.shared.completeLevel(currentLevel.id, stars: stars, score: score)
+        GameStateManager.shared.completeLevel(completedLevelId, stars: stars, score: score)
         
         // 延迟显示结算界面
         run(SKAction.sequence([
             SKAction.wait(forDuration: 1.5),
             SKAction.run { [weak self] in
-                self?.showLevelCompleteUI(stars: stars)
+                self?.showLevelCompleteUI(stars: stars, completedLevelId: completedLevelId)
             }
         ]))
     }
     
-    private func showLevelCompleteUI(stars: Int) {
+    private func showLevelCompleteUI(stars: Int, completedLevelId: Int) {
         // 创建半透明背景
         let overlay = SKShapeNode(rectOf: size)
-        overlay.fillColor = SKColor(white: 0, alpha: 0.85)
+        overlay.fillColor = SKColor(white: 0, alpha: 0.9)  // 增加透明度，减少遮挡
         overlay.strokeColor = .clear
         overlay.zPosition = 400
         overlay.name = "levelCompleteOverlay"
@@ -2053,33 +2066,41 @@ class GameScene: SKScene {
         addChild(overlay)
         overlay.run(SKAction.fadeIn(withDuration: 0.3))
         
-        // 标题
+        // 主容器 - 重新设计布局避免重叠
+        let mainContainer = SKNode()
+        mainContainer.position = CGPoint(x: 0, y: 0)
+        mainContainer.zPosition = 1
+        overlay.addChild(mainContainer)
+        
+        // 标题区域 - 顶部
+        let titleContainer = SKNode()
+        titleContainer.position = CGPoint(x: 0, y: 180)
+        mainContainer.addChild(titleContainer)
+        
         let titleLabel = SKLabelNode(text: "⚔️ 关卡完成 ⚔️")
-        titleLabel.fontSize = 44
+        titleLabel.fontSize = 36
         titleLabel.fontName = "PingFangSC-Heavy"
         titleLabel.fontColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0)
-        titleLabel.position = CGPoint(x: 0, y: 200)
-        titleLabel.zPosition = 1
-        overlay.addChild(titleLabel)
+        titleContainer.addChild(titleLabel)
         
         // 修为称号显示
         let cultivationTitle = GameStateManager.shared.getCultivationTitle()
         let cultivationLabel = SKLabelNode(text: "修为境界: \(cultivationTitle)")
-        cultivationLabel.fontSize = 20
+        cultivationLabel.fontSize = 18
         cultivationLabel.fontName = "PingFangSC-Semibold"
         cultivationLabel.fontColor = SKColor(red: 0.8, green: 0.6, blue: 1.0, alpha: 1.0)
-        cultivationLabel.position = CGPoint(x: 0, y: 165)
-        cultivationLabel.zPosition = 1
-        overlay.addChild(cultivationLabel)
+        cultivationLabel.position = CGPoint(x: 0, y: -35)
+        titleContainer.addChild(cultivationLabel)
         
-        // 星星显示
+        // 星星显示区域 - 中上部
         let starContainer = SKNode()
-        starContainer.position = CGPoint(x: 0, y: 130)
-        starContainer.zPosition = 1
+        starContainer.position = CGPoint(x: 0, y: 100)
+        mainContainer.addChild(starContainer)
+        
         for i in 0..<3 {
             let star = SKLabelNode(text: i < stars ? "⭐️" : "☆")
-            star.fontSize = 50
-            star.position = CGPoint(x: CGFloat(i - 1) * 70, y: 0)
+            star.fontSize = 40
+            star.position = CGPoint(x: CGFloat(i - 1) * 60, y: 0)
             starContainer.addChild(star)
             
             // 星星动画
@@ -2095,108 +2116,117 @@ class GameScene: SKScene {
                 ]))
             }
         }
-        overlay.addChild(starContainer)
         
-        // 分数信息
-        let scoreInfo = SKLabelNode(text: "修为: \(score) / \(currentLevel.targetScore)")
-        scoreInfo.fontSize = 22
+        // 分数信息区域 - 中部
+        let scoreContainer = SKNode()
+        scoreContainer.position = CGPoint(x: 0, y: 30)
+        mainContainer.addChild(scoreContainer)
+        
+        let scoreInfo = SKLabelNode(text: "修为: \(score) / \(LevelConfig.shared.getLevel(at: completedLevelId - 1)?.targetScore ?? 0)")
+        scoreInfo.fontSize = 20
         scoreInfo.fontName = "PingFangSC-Regular"
         scoreInfo.fontColor = .white
-        scoreInfo.position = CGPoint(x: 0, y: 70)
-        scoreInfo.zPosition = 1
-        overlay.addChild(scoreInfo)
+        scoreInfo.position = CGPoint(x: 0, y: 15)
+        scoreContainer.addChild(scoreInfo)
         
-        let mergeInfo = SKLabelNode(text: "合成: \(mergeCount) / \(currentLevel.targetMerges)")
-        mergeInfo.fontSize = 22
+        let mergeInfo = SKLabelNode(text: "合成: \(mergeCount) / \(LevelConfig.shared.getLevel(at: completedLevelId - 1)?.targetMerges ?? 0)")
+        mergeInfo.fontSize = 20
         mergeInfo.fontName = "PingFangSC-Regular"
         mergeInfo.fontColor = .white
-        mergeInfo.position = CGPoint(x: 0, y: 45)
-        mergeInfo.zPosition = 1
-        overlay.addChild(mergeInfo)
+        mergeInfo.position = CGPoint(x: 0, y: -15)
+        scoreContainer.addChild(mergeInfo)
         
-        // 成就展示区域
+        // 成就展示区域 - 中下部，紧凑显示
+        let achievementsContainer = SKNode()
+        achievementsContainer.position = CGPoint(x: 0, y: -40)
+        mainContainer.addChild(achievementsContainer)
+        
         let achievementsTitle = SKLabelNode(text: "✨ 本关成就 ✨")
-        achievementsTitle.fontSize = 20
+        achievementsTitle.fontSize = 16
         achievementsTitle.fontName = "PingFangSC-Semibold"
         achievementsTitle.fontColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0)
-        achievementsTitle.position = CGPoint(x: 0, y: 10)
-        achievementsTitle.zPosition = 1
-        overlay.addChild(achievementsTitle)
+        achievementsTitle.position = CGPoint(x: 0, y: 20)
+        achievementsContainer.addChild(achievementsTitle)
         
         // 收集成就数据
         let achievements = collectAchievements()
         
-        // 显示成就（最多显示4个）
-        let displayAchievements = Array(achievements.prefix(4))
-        let startY: CGFloat = -20
-        let spacing: CGFloat = 35
+        // 显示成就（最多显示3个，紧凑排列）
+        let displayAchievements = Array(achievements.prefix(3))
+        let spacing: CGFloat = 25
         
         for (index, achievement) in displayAchievements.enumerated() {
-            let achievementNode = createAchievementBadge(
+            let achievementNode = createCompactAchievementBadge(
                 icon: achievement.icon,
                 text: achievement.text,
-                position: CGPoint(x: 0, y: startY - CGFloat(index) * spacing)
+                position: CGPoint(x: 0, y: -5 - CGFloat(index) * spacing)
             )
             achievementNode.alpha = 0
-            overlay.addChild(achievementNode)
+            achievementsContainer.addChild(achievementNode)
             
             // 成就动画
             achievementNode.run(SKAction.sequence([
-                SKAction.wait(forDuration: 0.8 + Double(index) * 0.15),
+                SKAction.wait(forDuration: 0.8 + Double(index) * 0.1),
                 SKAction.group([
                     SKAction.fadeIn(withDuration: 0.3),
-                    SKAction.moveBy(x: 0, y: 5, duration: 0.3)
+                    SKAction.moveBy(x: 0, y: 3, duration: 0.3)
                 ])
             ]))
         }
         
-        // 按钮容器
-        let buttonY: CGFloat = -170
+        // 按钮区域 - 底部，确保不重叠
+        let buttonContainer = SKNode()
+        buttonContainer.position = CGPoint(x: 0, y: -160)
+        mainContainer.addChild(buttonContainer)
         
         // 判断是否有下一关
-        let nextLevelId = currentLevel.id + 1
+        let nextLevelId = completedLevelId + 1
         let hasNextLevel = nextLevelId <= LevelConfig.shared.levels.count
         
-        print("🔍 关卡完成检查: 当前关卡=\(currentLevel.id), 下一关=\(nextLevelId), 总关卡数=\(LevelConfig.shared.levels.count), 有下一关=\(hasNextLevel)")
+        print("🔍 关卡完成检查: 完成关卡=\(completedLevelId), 下一关=\(nextLevelId), 总关卡数=\(LevelConfig.shared.levels.count), 有下一关=\(hasNextLevel)")
         print("🔍 已解锁关卡: \(GameStateManager.shared.unlockedLevels)")
+        print("🔍 当前GameStateManager.currentLevel: \(GameStateManager.shared.currentLevel)")
         
-        if hasNextLevel {
+        // 强制确保第一关完成后可以进入第二关
+        let forceHasNextLevel = completedLevelId == 1 || hasNextLevel
+        print("🔍 强制检查结果: forceHasNextLevel=\(forceHasNextLevel)")
+        
+        if forceHasNextLevel {
             // 下一关按钮
             let nextBtn = createStyledButton(
                 text: "下一关 ➡️",
-                position: CGPoint(x: 0, y: buttonY),
+                position: CGPoint(x: 0, y: 0),
                 color: SKColor(red: 0.2, green: 0.8, blue: 0.3, alpha: 1.0),
                 name: "nextLevelBtn"
             )
-            overlay.addChild(nextBtn)
+            buttonContainer.addChild(nextBtn)
             
-            // 重新挑战按钮（小一点，放在下面）
+            // 重新挑战按钮（小一点，放在下面，增加间距避免重叠）
             let restartBtn = createStyledButton(
                 text: "重新挑战",
-                position: CGPoint(x: 0, y: buttonY - 60),
+                position: CGPoint(x: 0, y: -70),  // 从-50改为-70，增加20像素间距
                 color: SKColor(red: 0.5, green: 0.5, blue: 0.5, alpha: 1.0),
                 name: "restartBtn",
                 fontSize: 18
             )
-            overlay.addChild(restartBtn)
+            buttonContainer.addChild(restartBtn)
         } else {
             // 所有关卡完成
             let completeLabel = SKLabelNode(text: "🎉 所有关卡已完成 🎉")
-            completeLabel.fontSize = 28
+            completeLabel.fontSize = 24
             completeLabel.fontName = "PingFangSC-Bold"
             completeLabel.fontColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0)
-            completeLabel.position = CGPoint(x: 0, y: buttonY + 20)
-            completeLabel.zPosition = 1
-            overlay.addChild(completeLabel)
+            completeLabel.position = CGPoint(x: 0, y: 15)
+            buttonContainer.addChild(completeLabel)
             
             // 重新挑战按钮
             let restartBtn = createStyledButton(
                 text: "重新挑战",
-                position: CGPoint(x: 0, y: buttonY - 30),
+                position: CGPoint(x: 0, y: -25),
                 color: SKColor(red: 0.2, green: 0.8, blue: 0.3, alpha: 1.0),
                 name: "restartBtn"
             )
-            overlay.addChild(restartBtn)
+            buttonContainer.addChild(restartBtn)
         }
     }
     
@@ -2270,6 +2300,38 @@ class GameScene: SKScene {
         }
         
         return achievements
+    }
+    
+    // 创建紧凑版成就徽章
+    private func createCompactAchievementBadge(icon: String, text: String, position: CGPoint) -> SKNode {
+        let container = SKNode()
+        container.position = position
+        container.zPosition = 1
+        
+        // 背景 - 更小更紧凑
+        let background = SKShapeNode(rectOf: CGSize(width: 220, height: 22), cornerRadius: 11)
+        background.fillColor = SKColor(white: 0.2, alpha: 0.8)
+        background.strokeColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 0.5)
+        background.lineWidth = 1
+        container.addChild(background)
+        
+        // 图标
+        let iconLabel = SKLabelNode(text: icon)
+        iconLabel.fontSize = 16
+        iconLabel.position = CGPoint(x: -90, y: -6)
+        iconLabel.horizontalAlignmentMode = .left
+        container.addChild(iconLabel)
+        
+        // 文字
+        let textLabel = SKLabelNode(text: text)
+        textLabel.fontSize = 14
+        textLabel.fontName = "PingFangSC-Regular"
+        textLabel.fontColor = .white
+        textLabel.position = CGPoint(x: -70, y: -5)
+        textLabel.horizontalAlignmentMode = .left
+        container.addChild(textLabel)
+        
+        return container
     }
     
     // 创建成就徽章
@@ -2623,7 +2685,10 @@ class GameScene: SKScene {
         moveLabel = nil
         
         // 获取新的当前关卡
+        print("🔍 goToNextLevel: 准备获取新关卡")
+        print("🔍 goToNextLevel: GameStateManager.currentLevel = \(GameStateManager.shared.currentLevel)")
         currentLevel = LevelConfig.shared.getCurrentLevel()
+        print("🔍 goToNextLevel: 获取到的关卡ID = \(currentLevel.id), 名称 = \(currentLevel.name)")
         maxEnergyForCurrentLevel = GameConfig.maxEnergy(for: currentLevel.id)  // 更新最大能量
         timeRemaining = currentLevel.rules.timeLimit ?? 0
         
