@@ -123,10 +123,7 @@ public final class ModernGameScene: SKScene {
         // 临时修复：确保第二关总是解锁的
         GameStateManager.shared.forceUnlockLevel(2)
         
-        // 🔧 添加调试按钮（仅在第一关显示）
-        if GameStateManager.shared.currentLevel == 1 {
-            addDebugButton()
-        }
+
         
         // 设置场景的锚点为中心，确保坐标系统正确
         anchorPoint = CGPoint(x: 0.5, y: 0.5)
@@ -177,25 +174,7 @@ public final class ModernGameScene: SKScene {
         setupBindings()
     }
     
-    // 🔧 添加调试按钮，方便测试关卡进度
-    private func addDebugButton() {
-        let debugBtn = SKShapeNode(rectOf: CGSize(width: 120, height: 40), cornerRadius: 8)
-        debugBtn.fillColor = SKColor(red: 1.0, green: 0.5, blue: 0.0, alpha: 0.8)
-        debugBtn.strokeColor = .white
-        debugBtn.lineWidth = 1
-        debugBtn.position = CGPoint(x: size.width/2 - 80, y: -size.height/2 + 50)
-        debugBtn.zPosition = 250
-        debugBtn.name = "debugCompleteBtn"
-        addChild(debugBtn)
-        
-        let debugLabel = SKLabelNode(text: "完成关卡")
-        debugLabel.fontSize = 16
-        debugLabel.fontName = "PingFangSC-Semibold"
-        debugLabel.fontColor = .white
-        debugLabel.verticalAlignmentMode = .center
-        debugLabel.name = "debugCompleteBtn"
-        debugBtn.addChild(debugLabel)
-    }
+
     
     // MARK: - Audio Setup (迁移老代码音效系统)
     

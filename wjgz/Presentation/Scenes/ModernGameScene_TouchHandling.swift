@@ -137,14 +137,7 @@ extension ModernGameScene {
         
         // 按优先级顺序检查按钮，确保下一关按钮优先于重新挑战按钮
         for node in nodes {
-            if node.name == "debugCompleteBtn" {
-                // 🔧 调试：直接完成当前关卡
-                score = currentLevel.targetScore
-                mergeCount = currentLevel.targetMerges
-                updateUI()
-                checkLevelCompletion()
-                return
-            }
+
         }
         
         // 按优先级顺序检查按钮，确保下一关按钮优先于重新挑战按钮
