@@ -9,6 +9,13 @@ import SpriteKit
 import GameplayKit
 import AudioToolbox
 
+// MARK: - Array Extension for Safe Access
+extension Array {
+    subscript(safe index: Index) -> Element? {
+        return indices.contains(index) ? self[index] : nil
+    }
+}
+
 class GameScene: SKScene {
     
     // MARK: - Layers
@@ -43,6 +50,7 @@ class GameScene: SKScene {
     
     // MARK: - Game State
     private var energy: CGFloat = 0
+    private var maxEnergyForCurrentLevel: CGFloat = 100  // 当前关卡的最大能量
     private var score: Int = 0
     private var mergeCount: Int = 0
     private var comboCount: Int = 0
@@ -91,6 +99,9 @@ class GameScene: SKScene {
         // 获取当前关卡（使用新的游戏状态管理）
         currentLevel = LevelConfig.shared.getCurrentLevel()
         
+        // 设置当前关卡的最大能量
+        maxEnergyForCurrentLevel = GameConfig.maxEnergy(for: currentLevel.id)
+        
         setupLayers()
         effectsManager = EffectsManager(scene: self, effectLayer: effectLayer)
         
@@ -109,8 +120,8 @@ class GameScene: SKScene {
         // 关卡开始特效
         effectsManager.playLevelStartEffect(levelName: currentLevel.name)
         
-        // 显示终极奥义提示
-        showUltimatePatternHint()
+        // 取消终极奥义弹窗提示 - 现在融合在右面板中显示
+        // showUltimatePatternHint()
         
         if !GameStateManager.shared.tutorialCompleted {
             showTutorial()
@@ -646,6 +657,7 @@ class GameScene: SKScene {
         setupEnergyBar()
         setupUltimateButton()
         setupLevelConstraints()
+        setupUltimatePatternDisplay()  // 添加终极奥义显示
     }
     
     private func setupScorePanel() {
@@ -669,16 +681,17 @@ class GameScene: SKScene {
         scoreLabel.position = CGPoint(x: -20, y: -8)
         leftPanel.addChild(scoreLabel)
         
-        // Right panel - Merge count
-        let rightPanel = createGlassPanel(size: CGSize(width: 120, height: 60))
-        rightPanel.position = CGPoint(x: size.width/2 - 75, y: -size.height/2 + 130)
+        // Right panel - Merge count with Ultimate Pattern (融合终极奥义显示)
+        let rightPanel = createGlassPanel(size: CGSize(width: 120, height: 90))  // 增加高度容纳终极奥义
+        rightPanel.position = CGPoint(x: size.width/2 - 75, y: -size.height/2 + 145)  // 稍微上移
+        rightPanel.name = "rightPanel"
         uiLayer.addChild(rightPanel)
         
         let mergeIcon = SKLabelNode(text: "阵")
         mergeIcon.fontSize = 18
         mergeIcon.fontName = "PingFangSC-Bold"
         mergeIcon.fontColor = SKColor(red: 0.2, green: 0.9, blue: 0.7, alpha: 1.0)
-        mergeIcon.position = CGPoint(x: -40, y: -5)
+        mergeIcon.position = CGPoint(x: -40, y: 15)  // 上移
         rightPanel.addChild(mergeIcon)
         
         let mergeLabel = SKLabelNode(text: "0/\(currentLevel.targetMerges)")
@@ -686,9 +699,12 @@ class GameScene: SKScene {
         mergeLabel.fontName = "PingFangSC-Bold"
         mergeLabel.fontColor = SKColor(red: 0.2, green: 0.9, blue: 0.7, alpha: 1.0)
         mergeLabel.horizontalAlignmentMode = .left
-        mergeLabel.position = CGPoint(x: -20, y: -8)
+        mergeLabel.position = CGPoint(x: -20, y: 12)  // 上移
         mergeLabel.name = "mergeLabel"
         rightPanel.addChild(mergeLabel)
+        
+        // 在右面板中添加终极奥义显示
+        setupUltimatePatternInPanel(rightPanel)
     }
     
     private func setupLevelConstraints() {
@@ -776,6 +792,15 @@ class GameScene: SKScene {
         energyLabel.fontColor = SKColor(white: 0.6, alpha: 1.0)
         energyLabel.position = CGPoint(x: -barWidth/2 - 30, y: barY - 5)
         uiLayer.addChild(energyLabel)
+        
+        // 添加能量数值显示
+        let energyValueLabel = SKLabelNode(text: "0/\(Int(maxEnergyForCurrentLevel))")
+        energyValueLabel.fontSize = 11
+        energyValueLabel.fontName = "PingFangSC-Regular"
+        energyValueLabel.fontColor = SKColor(white: 0.8, alpha: 1.0)
+        energyValueLabel.position = CGPoint(x: barWidth/2 + 40, y: barY - 5)
+        energyValueLabel.name = "energyValueLabel"
+        uiLayer.addChild(energyValueLabel)
         
         energyBarBg = SKShapeNode(rectOf: CGSize(width: barWidth, height: barHeight), cornerRadius: 8)
         energyBarBg.fillColor = SKColor(white: 0.15, alpha: 0.9)
@@ -1899,10 +1924,10 @@ class GameScene: SKScene {
     
     private func addEnergy(_ value: CGFloat) {
         let oldEnergy = energy
-        energy = min(energy + value, GameConfig.maxEnergy)
+        energy = min(energy + value, maxEnergyForCurrentLevel)
         
         // 能量满时开始脉冲
-        if energy >= GameConfig.maxEnergy && oldEnergy < GameConfig.maxEnergy {
+        if energy >= maxEnergyForCurrentLevel && oldEnergy < maxEnergyForCurrentLevel {
             effectsManager.startEnergyFullPulse(around: ultimateButton)
             effectsManager.showFeedbackText("剑意已满!", at: CGPoint(x: 0, y: -100), style: .perfect)
             SoundManager.shared.playEnergyFull()
@@ -1936,8 +1961,8 @@ class GameScene: SKScene {
         updateTimerDisplay()
         updateMoveDisplay()
         
-        // Energy bar
-        let percentage = energy / GameConfig.maxEnergy
+        // Energy bar and value display
+        let percentage = energy / maxEnergyForCurrentLevel
         let barWidth: CGFloat = 200
         let fillWidth = barWidth * percentage - 4
         
@@ -1945,8 +1970,20 @@ class GameScene: SKScene {
                              cornerWidth: 6, cornerHeight: 6, transform: nil)
         energyBarFill.path = newPath
         
+        // Update energy value display
+        if let energyValueLabel = uiLayer.childNode(withName: "energyValueLabel") as? SKLabelNode {
+            energyValueLabel.text = "\(Int(energy))/\(Int(maxEnergyForCurrentLevel))"
+            
+            // 能量满时变色
+            if energy >= maxEnergyForCurrentLevel {
+                energyValueLabel.fontColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0)
+            } else {
+                energyValueLabel.fontColor = SKColor(white: 0.8, alpha: 1.0)
+            }
+        }
+        
         // Ultimate button
-        if energy >= GameConfig.maxEnergy {
+        if energy >= maxEnergyForCurrentLevel {
             ultimateButton.isHidden = false
             if let hint = uiLayer.childNode(withName: "ultimateHint") as? SKLabelNode {
                 hint.text = "剑意已满，可释放！"
@@ -2117,8 +2154,11 @@ class GameScene: SKScene {
         let buttonY: CGFloat = -170
         
         // 判断是否有下一关
-        let hasNextLevel = GameStateManager.shared.unlockedLevels.contains(currentLevel.id + 1) || 
-                          currentLevel.id < LevelConfig.shared.levels.count
+        let nextLevelId = currentLevel.id + 1
+        let hasNextLevel = nextLevelId <= LevelConfig.shared.levels.count
+        
+        print("🔍 关卡完成检查: 当前关卡=\(currentLevel.id), 下一关=\(nextLevelId), 总关卡数=\(LevelConfig.shared.levels.count), 有下一关=\(hasNextLevel)")
+        print("🔍 已解锁关卡: \(GameStateManager.shared.unlockedLevels)")
         
         if hasNextLevel {
             // 下一关按钮
@@ -2521,6 +2561,7 @@ class GameScene: SKScene {
         moveLabel = nil
         
         currentLevel = LevelConfig.shared.getCurrentLevel()
+        maxEnergyForCurrentLevel = GameConfig.maxEnergy(for: currentLevel.id)  // 更新最大能量
         timeRemaining = currentLevel.rules.timeLimit ?? 0
         
         levelLabel.text = "第\(currentLevel.id)关 - \(currentLevel.name)"
@@ -2529,11 +2570,12 @@ class GameScene: SKScene {
         createGrid()
         setupLevelRules()
         setupLevelConstraints()  // 重新设置时间和步数限制显示
+        setupUltimatePatternDisplay()  // 重新设置终极奥义显示
         updateUI()  // 这里会显示累积的修为积分
         spawnInitialSwords()
         
-        // 显示新关卡的终极奥义提示
-        showUltimatePatternHint()
+        // 取消终极奥义弹窗提示 - 现在融合在右面板中显示
+        // showUltimatePatternHint()
         
         effectsManager.playLevelStartEffect(levelName: currentLevel.name)
     }
@@ -2582,6 +2624,7 @@ class GameScene: SKScene {
         
         // 获取新的当前关卡
         currentLevel = LevelConfig.shared.getCurrentLevel()
+        maxEnergyForCurrentLevel = GameConfig.maxEnergy(for: currentLevel.id)  // 更新最大能量
         timeRemaining = currentLevel.rules.timeLimit ?? 0
         
         levelLabel.text = "第\(currentLevel.id)关 - \(currentLevel.name)"
@@ -2590,11 +2633,12 @@ class GameScene: SKScene {
         createGrid()
         setupLevelRules()
         setupLevelConstraints()  // 重新设置时间和步数限制显示
+        setupUltimatePatternDisplay()  // 重新设置终极奥义显示
         updateUI()  // 这里会显示累积的修为积分
         spawnInitialSwords()
         
-        // 显示新关卡的终极奥义提示
-        showUltimatePatternHint()
+        // 取消终极奥义弹窗提示 - 现在融合在右面板中显示
+        // showUltimatePatternHint()
         
         effectsManager.playLevelStartEffect(levelName: currentLevel.name)
     }
@@ -2617,6 +2661,83 @@ class GameScene: SKScene {
         label.fontColor = .white
         label.verticalAlignmentMode = .center
         container.addChild(label)
+        
+        return container
+    }
+    
+    // MARK: - Ultimate Pattern Display (终极奥义显示 - 融合到面板中)
+    
+    private func setupUltimatePatternDisplay() {
+        // 终极奥义显示现在融合在右面板中，这里只需要更新内容
+        if let rightPanel = uiLayer.childNode(withName: "rightPanel") {
+            setupUltimatePatternInPanel(rightPanel)
+        }
+    }
+    
+    private func setupUltimatePatternInPanel(_ panel: SKNode) {
+        // 移除之前的终极奥义显示
+        panel.childNode(withName: "ultimatePatternContainer")?.removeFromParent()
+        
+        guard let pattern = currentLevel.rules.ultimatePattern else { return }
+        
+        // 创建终极奥义容器
+        let patternContainer = SKNode()
+        patternContainer.name = "ultimatePatternContainer"
+        patternContainer.position = CGPoint(x: 0, y: -20)  // 在合成信息下方
+        panel.addChild(patternContainer)
+        
+        // 奥义标题（小字）
+        let titleLabel = SKLabelNode(text: "奥义")
+        titleLabel.fontSize = 10
+        titleLabel.fontName = "PingFangSC-Semibold"
+        titleLabel.fontColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 0.8)
+        titleLabel.position = CGPoint(x: 0, y: 8)
+        patternContainer.addChild(titleLabel)
+        
+        // 奥义名称（紧凑显示）
+        let nameLabel = SKLabelNode(text: pattern.name)
+        nameLabel.fontSize = 12
+        nameLabel.fontName = "PingFangSC-Bold"
+        nameLabel.fontColor = SKColor(red: 0.8, green: 0.6, blue: 1.0, alpha: 1.0)
+        nameLabel.position = CGPoint(x: 0, y: -5)
+        patternContainer.addChild(nameLabel)
+        
+        // 触发条件图标（小图标）
+        let iconContainer = createCompactUltimatePatternIcon(pattern: pattern)
+        iconContainer.position = CGPoint(x: 0, y: -18)
+        patternContainer.addChild(iconContainer)
+    }
+    
+    private func createCompactUltimatePatternIcon(pattern: UltimatePattern) -> SKNode {
+        let container = SKNode()
+        
+        switch pattern.triggerCondition {
+        case .specificPattern:
+            let icon = SKLabelNode(text: "🗡️")
+            icon.fontSize = 12
+            container.addChild(icon)
+            
+        case .swordTypeCount:
+            let requiredCount = currentLevel.id <= 5 ? 5 : 8
+            let icon = SKLabelNode(text: currentLevel.id <= 5 ? "⚔️\(requiredCount)" : "🌟\(requiredCount)")
+            icon.fontSize = 10
+            icon.fontName = "PingFangSC-Regular"
+            icon.fontColor = SKColor(white: 0.9, alpha: 1.0)
+            container.addChild(icon)
+            
+        case .comboCount:
+            let requiredCombo = currentLevel.id <= 5 ? 3 : 5
+            let icon = SKLabelNode(text: "⚡️\(requiredCombo)")
+            icon.fontSize = 10
+            icon.fontName = "PingFangSC-Regular"
+            icon.fontColor = SKColor(white: 0.9, alpha: 1.0)
+            container.addChild(icon)
+            
+        case .timeWindow:
+            let icon = SKLabelNode(text: "⏰")
+            icon.fontSize = 12
+            container.addChild(icon)
+        }
         
         return container
     }

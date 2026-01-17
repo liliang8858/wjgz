@@ -68,7 +68,13 @@ enum SwordType: Int, CaseIterable, Codable {
 struct GameConfig {
     static let tileRadius: CGFloat = 35.0
     static let gridSpacing: CGFloat = 5.0
-    static let maxEnergy: CGFloat = 100
+    static let baseMaxEnergy: CGFloat = 100  // 基础能量池
+    static let energyGrowthPerLevel: CGFloat = 15  // 每关增长的能量
     static let comboTimeout: TimeInterval = 3.0
     static let ultimateClearPercent: Double = 0.7
+    
+    // 根据关卡计算最大能量
+    static func maxEnergy(for level: Int) -> CGFloat {
+        return baseMaxEnergy + CGFloat(level - 1) * energyGrowthPerLevel
+    }
 }
