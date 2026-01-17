@@ -163,13 +163,7 @@ extension ModernGameScene {
             mainContainer.addChild(restartBtn)
         }
         
-        // 🔧 添加调试信息
-        let debugInfo = SKLabelNode(text: "调试: 已解锁关卡 \(GameStateManager.shared.unlockedLevels)")
-        debugInfo.fontSize = 12
-        debugInfo.fontName = "PingFangSC-Regular"
-        debugInfo.fontColor = SKColor(white: 0.5, alpha: 1.0)
-        debugInfo.position = CGPoint(x: 0, y: -200)
-        mainContainer.addChild(debugInfo)
+
     }
     
     // 创建样式化按钮

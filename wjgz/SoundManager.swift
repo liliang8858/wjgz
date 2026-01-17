@@ -388,7 +388,7 @@ class SoundManager {
     
     /// 升级光柱（短音效，音量降低）
     func playLevelUp() {
-        playMergeSoundEffect("power_up", fallbackSystemSound: successSoundID)
+        playMergeSoundEffect("success", fallbackSystemSound: successSoundID)
         vibrate(.medium)
     }
     
@@ -412,7 +412,7 @@ class SoundManager {
     
     /// 能量满音效（短音效，音量降低）
     func playEnergyFull() {
-        playMergeSoundEffect("power_up", fallbackSystemSound: successSoundID)
+        playMergeSoundEffect("success", fallbackSystemSound: successSoundID)
         vibrate(.medium)
     }
     
@@ -460,7 +460,7 @@ class SoundManager {
             playMergeSoundEffect("success", fallbackSystemSound: successSoundID)
             vibrate(.heavy)
         case 8...10:
-            playMergeSoundEffect("power_up", fallbackSystemSound: successSoundID)
+            playMergeSoundEffect("success", fallbackSystemSound: successSoundID)
             vibrate(.heavy)
         default:
             playUltimate()
