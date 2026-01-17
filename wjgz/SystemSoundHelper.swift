@@ -17,7 +17,6 @@ class SystemSoundHelper {
     
     func setEnabled(_ enabled: Bool) {
         isEnabled = enabled
-        print("🔊 SystemSoundHelper 启用状态: \(enabled)")
     }
     
     // MARK: - 基础音效

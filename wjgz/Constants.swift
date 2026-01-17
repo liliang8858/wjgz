@@ -3,7 +3,7 @@ import CoreGraphics
 import UIKit
 
 // MARK: - Sword Types (4 levels like demo)
-enum SwordType: Int, CaseIterable, Codable {
+public enum SwordType: Int, CaseIterable, Codable {
     case fan = 1    // 凡剑 - Mortal (Base)
     case ling = 2   // 灵剑 - Spirit (Directional clear)
     case xian = 3   // 仙剑 - Immortal (Area clear)
@@ -61,6 +61,19 @@ enum SwordType: Int, CaseIterable, Codable {
         case .xian: return 35
         case .shen: return 50
         }
+    }
+    
+    var upgraded: SwordType? {
+        switch self {
+        case .fan: return .ling
+        case .ling: return .xian
+        case .xian: return .shen
+        case .shen: return nil // 神剑已是最高级
+        }
+    }
+    
+    static func random() -> SwordType {
+        return SwordType.allCases.randomElement() ?? .fan
     }
 }
 

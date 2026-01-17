@@ -2,7 +2,7 @@ import Foundation
 import UIKit
 
 // MARK: - Formation Types (剑阵形态)
-enum FormationType: String, CaseIterable, Codable {
+public enum FormationType: String, CaseIterable, Codable {
     // 基础阵型
     case hexagon = "六合阵"      // 标准六边形
     case diamond = "菱形阵"      // 菱形
@@ -102,7 +102,7 @@ struct UltimatePattern: Codable {
 }
 
 // MARK: - Level Definition
-struct Level: Codable {
+public struct Level: Codable {
     let id: Int
     let name: String
     let subtitle: String
@@ -147,7 +147,7 @@ struct Achievement: Codable {
 }
 
 // MARK: - Game State Manager
-class GameStateManager {
+public class GameStateManager {
     static let shared = GameStateManager()
     private let storageKey = "sword_game_state"
     
@@ -184,16 +184,13 @@ class GameStateManager {
         Achievement(id: "chain_clear", name: "剑气纵横", description: "触发剑气连锁消除", icon: "🌊", unlocked: false),
     ]
     
-    private init() {
+    public init() {
         loadGameState()
     }
     
     // MARK: - Level Management
     
     func completeLevel(_ levelId: Int, stars: Int, score: Int) {
-        print("🔍 completeLevel: 开始处理关卡完成，levelId=\(levelId)")
-        print("🔍 completeLevel: 完成前 currentLevel=\(currentLevel)")
-        
         // 增加修为
         let cultivationGain = calculateCultivationGain(levelId: levelId, stars: stars, score: score)
         cultivation += cultivationGain
@@ -202,19 +199,14 @@ class GameStateManager {
         let nextLevel = levelId + 1
         if nextLevel <= LevelConfig.shared.levels.count {
             unlockedLevels.insert(nextLevel)
-            print("🔍 completeLevel: 解锁关卡 \(nextLevel)")
         }
         
         // 更新当前关卡
         if levelId >= currentLevel {
             currentLevel = nextLevel
-            print("🔍 completeLevel: 更新 currentLevel 为 \(currentLevel)")
-        } else {
-            print("🔍 completeLevel: 不更新 currentLevel，因为 \(levelId) < \(currentLevel)")
         }
         
         saveGameState()
-        print("🔍 completeLevel: 保存游戏状态完成")
         print("🎉 关卡 \(levelId) 完成！获得修为: \(cultivationGain)，总修为: \(cultivation)")
     }
     
@@ -316,9 +308,8 @@ class GameStateManager {
             "ultimateCount": ultimateCount,
             "maxCombo": maxCombo
         ]
-        print("🔍 saveGameState: 准备保存状态 currentLevel=\(currentLevel)")
+        
         UserDefaults.standard.set(state, forKey: storageKey)
-        print("🔍 saveGameState: 状态保存完成")
         
         if let swordData = try? JSONEncoder().encode(swordCollection) {
             UserDefaults.standard.set(swordData, forKey: "\(storageKey)_swords")
@@ -339,14 +330,10 @@ class GameStateManager {
             }
             ultimateCount = state["ultimateCount"] as? Int ?? 0
             maxCombo = state["maxCombo"] as? Int ?? 0
-            print("🔍 loadGameState: 加载成功 currentLevel=\(currentLevel), cultivation=\(cultivation)")
-        } else {
-            print("🔍 loadGameState: 没有找到保存的状态，使用默认值")
         }
         
         // Ensure current level is unlocked
         unlockedLevels.insert(currentLevel)
-        print("🔍 loadGameState: 确保当前关卡已解锁，unlockedLevels=\(unlockedLevels)")
         
         if let swordData = UserDefaults.standard.data(forKey: "\(storageKey)_swords"),
            let swords = try? JSONDecoder().decode([SwordData].self, from: swordData) {
@@ -377,7 +364,7 @@ class LevelConfig {
     var levels: [Level] = []  // Changed from private(set) to var
     
     private init() {
-        loadOptimizedLevels()  // 使用优化后的关卡配置
+        loadLevels()  // 使用标准关卡配置
     }
     
     func getCurrentLevel() -> Level {

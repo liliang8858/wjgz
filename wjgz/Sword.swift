@@ -1,15 +1,25 @@
 import SpriteKit
 
-class Sword: SKSpriteNode {
-    var type: SwordType
-    var gridPosition: (q: Int, r: Int)
+public class Sword: SKSpriteNode {
+    public var type: SwordType
+    public var hexPosition: HexPosition
+    
+    // Legacy compatibility property for grid position
+    public var gridPosition: (q: Int, r: Int) {
+        get {
+            return (q: hexPosition.q, r: hexPosition.r)
+        }
+        set {
+            hexPosition = HexPosition(q: newValue.q, r: newValue.r)
+        }
+    }
     
     private var glowNode: SKShapeNode?
     private var floatAction: SKAction?
     
-    init(type: SwordType, gridPosition: (q: Int, r: Int)) {
+    init(type: SwordType, position: HexPosition) {
         self.type = type
-        self.gridPosition = gridPosition
+        self.hexPosition = position
         
         let size = CGSize(width: GameConfig.tileRadius * 1.8, height: GameConfig.tileRadius * 2.0)
         super.init(texture: nil, color: .clear, size: size)
@@ -17,6 +27,12 @@ class Sword: SKSpriteNode {
         self.name = "sword"
         setupVisuals()
         startFloatingAnimation()
+    }
+    
+    // Legacy compatibility initializer
+    convenience init(type: SwordType, gridPosition: (q: Int, r: Int)) {
+        let hexPos = HexPosition(q: gridPosition.q, r: gridPosition.r)
+        self.init(type: type, position: hexPos)
     }
     
     required init?(coder aDecoder: NSCoder) {

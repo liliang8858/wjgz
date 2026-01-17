@@ -109,10 +109,7 @@ class SoundManager {
     
     /// 播放音效
     private func playSoundEffect(_ name: String, fallbackSystemSound: SystemSoundID? = nil) {
-        print("🔊 尝试播放音效: \(name), 启用状态: \(isEnabled)")
-        
         guard isEnabled else { 
-            print("❌ 音效系统已禁用")
             return 
         }
         
@@ -303,7 +300,6 @@ class SoundManager {
     
     /// 点击音效
     func playTap() {
-        print("🔊 playTap() 被调用")
         playSoundEffect("button_click", fallbackSystemSound: tapSoundID)
         vibrate(.light)
     }

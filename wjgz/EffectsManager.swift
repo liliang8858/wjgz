@@ -8,16 +8,6 @@
 import SpriteKit
 import AudioToolbox
 
-// MARK: - Effect Types
-enum EffectIntensity {
-    case micro      // 微特效：点击、选中
-    case small      // 小特效：单次合成
-    case medium     // 中特效：连击、升级
-    case large      // 大特效：连锁消除
-    case epic       // 史诗特效：万剑归宗
-    case legendary  // 传说特效：神剑出世
-}
-
 // MARK: - Particle Colors
 struct ParticleColors {
     static let gold = UIColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0)
