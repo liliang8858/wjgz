@@ -150,4 +150,16 @@ class Sword: SKSpriteNode {
         glowNode?.removeAction(forKey: "selectPulse")
         glowNode?.alpha = 0.6
     }
+    
+    func changeType(to newType: SwordType) {
+        self.type = newType
+        setupVisuals()
+        
+        // Change animation
+        let flash = SKAction.sequence([
+            SKAction.fadeAlpha(to: 0.3, duration: 0.1),
+            SKAction.fadeAlpha(to: 1.0, duration: 0.1)
+        ])
+        self.run(flash)
+    }
 }

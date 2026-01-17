@@ -42,6 +42,7 @@ class GameScene: SKScene {
     private var gameTimer: Timer?
     private var currentLevel: Level!
     private var isGameOver: Bool = false
+    private var ultimatePatternHintShown: Bool = false  // 是否已显示终极奥义提示
     
     // MARK: - Achievement Tracking
     private var maxCombo: Int = 0
@@ -70,9 +71,7 @@ class GameScene: SKScene {
     override func didMove(to view: SKView) {
         backgroundColor = SKColor(red: 0.08, green: 0.08, blue: 0.15, alpha: 1.0)
         
-        // 如果需要重置进度，取消下面的注释
-        // LevelConfig.shared.resetProgress()
-        
+        // 获取当前关卡（使用新的游戏状态管理）
         currentLevel = LevelConfig.shared.getCurrentLevel()
         
         setupLayers()
@@ -92,6 +91,9 @@ class GameScene: SKScene {
         
         // 关卡开始特效
         effectsManager.playLevelStartEffect(levelName: currentLevel.name)
+        
+        // 显示终极奥义提示
+        showUltimatePatternHint()
         
         if !GameStateManager.shared.tutorialCompleted {
             showTutorial()
@@ -764,6 +766,10 @@ class GameScene: SKScene {
                 skipTutorial()
                 return
             }
+            if node.name == "closeUltimateHint" {
+                closeUltimateHint()
+                return
+            }
         }
         
         // 如果游戏结束，不处理游戏内交互
@@ -942,6 +948,9 @@ class GameScene: SKScene {
         if hadMatches {
             // 根据消除数量给予不同反馈
             giveFeedbackForMatchCount(totalMatchCount)
+            
+            // 检查终极奥义触发
+            checkUltimatePattern()
             
             run(SKAction.sequence([
                 SKAction.wait(forDuration: 0.4),
@@ -1163,25 +1172,412 @@ class GameScene: SKScene {
         ultimateUsed += 1
         GameStateManager.shared.recordUltimate()
         
+        // 🌟 新功能：万剑归宗强化 - 自动连续消除3次
+        triggerAutoCombo(times: 3, reason: "万剑归宗")
+    }
+    
+    // MARK: - Ultimate Pattern System (终极奥义系统)
+    
+    private func showUltimatePatternHint() {
+        guard let pattern = currentLevel.rules.ultimatePattern, !ultimatePatternHintShown else { return }
+        
+        ultimatePatternHintShown = true
+        
+        // 延迟3秒显示提示
+        run(SKAction.sequence([
+            SKAction.wait(forDuration: 3.0),
+            SKAction.run { [weak self] in
+                self?.displayUltimatePatternHint(pattern: pattern)
+            }
+        ]))
+    }
+    
+    private func displayUltimatePatternHint(pattern: UltimatePattern) {
+        let hintOverlay = SKNode()
+        hintOverlay.zPosition = 300
+        hintOverlay.name = "ultimateHint"
+        addChild(hintOverlay)
+        
+        // 半透明背景
+        let bg = SKShapeNode(rectOf: size)
+        bg.fillColor = SKColor(white: 0, alpha: 0.7)
+        bg.strokeColor = .clear
+        hintOverlay.addChild(bg)
+        
+        // 提示面板
+        let panel = createGlassPanel(size: CGSize(width: 320, height: 200))
+        panel.position = CGPoint(x: 0, y: 0)
+        hintOverlay.addChild(panel)
+        
+        // 标题
+        let titleLabel = SKLabelNode(text: "🗡️ 终极奥义 🗡️")
+        titleLabel.fontSize = 24
+        titleLabel.fontName = "PingFangSC-Heavy"
+        titleLabel.fontColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0)
+        titleLabel.position = CGPoint(x: 0, y: 60)
+        panel.addChild(titleLabel)
+        
+        // 奥义名称
+        let nameLabel = SKLabelNode(text: pattern.name)
+        nameLabel.fontSize = 20
+        nameLabel.fontName = "PingFangSC-Semibold"
+        nameLabel.fontColor = SKColor(red: 0.8, green: 0.6, blue: 1.0, alpha: 1.0)
+        nameLabel.position = CGPoint(x: 0, y: 30)
+        panel.addChild(nameLabel)
+        
+        // 描述
+        let descLabel = SKLabelNode(text: pattern.description)
+        descLabel.fontSize = 16
+        descLabel.fontName = "PingFangSC-Regular"
+        descLabel.fontColor = .white
+        descLabel.position = CGPoint(x: 0, y: 0)
+        panel.addChild(descLabel)
+        
+        // 效果说明
+        let effectLabel = SKLabelNode(text: "触发后自动连续消除3次！")
+        effectLabel.fontSize = 14
+        effectLabel.fontName = "PingFangSC-Regular"
+        effectLabel.fontColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0)
+        effectLabel.position = CGPoint(x: 0, y: -30)
+        panel.addChild(effectLabel)
+        
+        // 关闭按钮
+        let closeBtn = SKLabelNode(text: "知道了")
+        closeBtn.fontSize = 18
+        closeBtn.fontName = "PingFangSC-Semibold"
+        closeBtn.fontColor = SKColor(red: 0.2, green: 0.8, blue: 0.3, alpha: 1.0)
+        closeBtn.position = CGPoint(x: 0, y: -70)
+        closeBtn.name = "closeUltimateHint"
+        panel.addChild(closeBtn)
+        
+        // 动画效果
+        hintOverlay.alpha = 0
+        hintOverlay.run(SKAction.fadeIn(withDuration: 0.3))
+        
+        // 自动关闭
+        run(SKAction.sequence([
+            SKAction.wait(forDuration: 8.0),
+            SKAction.run { [weak self] in
+                self?.closeUltimateHint()
+            }
+        ]), withKey: "autoCloseHint")
+    }
+    
+    private func closeUltimateHint() {
+        removeAction(forKey: "autoCloseHint")
+        childNode(withName: "ultimateHint")?.run(SKAction.sequence([
+            SKAction.fadeOut(withDuration: 0.3),
+            SKAction.removeFromParent()
+        ]))
+    }
+    
+    private func checkUltimatePattern() {
+        guard let pattern = currentLevel.rules.ultimatePattern else { return }
+        
+        switch pattern.triggerCondition {
+        case .specificPattern:
+            if checkSpecificPattern(pattern: pattern) {
+                triggerUltimatePattern(pattern: pattern)
+            }
+        case .swordTypeCount:
+            // 根据关卡ID调整检测条件
+            let requiredCount = currentLevel.id <= 5 ? 5 : 8
+            let shenCount = grid.values.filter { $0.type == .shen }.count
+            if currentLevel.id <= 5 {
+                // 前期关卡：场上有5把剑以上
+                if grid.count >= requiredCount {
+                    triggerUltimatePattern(pattern: pattern)
+                }
+            } else {
+                // 后期关卡：需要特定数量的神剑
+                if shenCount >= requiredCount {
+                    triggerUltimatePattern(pattern: pattern)
+                }
+            }
+        case .comboCount:
+            let requiredCombo = currentLevel.id <= 5 ? 3 : 5
+            if comboCount >= requiredCombo {
+                triggerUltimatePattern(pattern: pattern)
+            }
+        case .timeWindow:
+            // 时间窗口触发逻辑
+            break
+        }
+    }
+    
+    private func checkSpecificPattern(pattern: UltimatePattern) -> Bool {
+        guard pattern.positions.count == pattern.swordTypes.count else { return false }
+        
+        for (index, position) in pattern.positions.enumerated() {
+            let key = "\(position.q)_\(position.r)"
+            guard let sword = grid[key] else { return false }
+            if sword.type != pattern.swordTypes[index] {
+                return false
+            }
+        }
+        return true
+    }
+    
+    private func triggerUltimatePattern(pattern: UltimatePattern) {
         // 史诗特效
         effectsManager.playUltimateEffect()
-        effectsManager.playSlowMotion(duration: 0.5, slowFactor: 0.3)
+        effectsManager.showFeedbackText(pattern.effectDescription, at: .zero, style: .legendary)
         
-        // 清除70%的剑
-        let allSwords = Array(grid.values)
-        let countToRemove = Int(Double(allSwords.count) * GameConfig.ultimateClearPercent)
-        let toRemove = allSwords.shuffled().prefix(countToRemove)
+        // 🌟 自动连续消除3次
+        triggerAutoCombo(times: 3, reason: pattern.name)
+    }
+    
+    // MARK: - Auto Combo System (自动连续消除系统)
+    
+    private func triggerAutoCombo(times: Int, reason: String) {
+        // 显示自动连续消除界面
+        showAutoComboUI(times: times, reason: reason)
+    }
+    
+    private func showAutoComboUI(times: Int, reason: String) {
+        let overlay = SKShapeNode(rectOf: size)
+        overlay.fillColor = SKColor(white: 0, alpha: 0.8)
+        overlay.strokeColor = .clear
+        overlay.zPosition = 500
+        overlay.name = "autoComboOverlay"
+        addChild(overlay)
         
-        for sword in toRemove {
-            removeSword(sword)
-            addScore(20)
+        // 主标题
+        let titleLabel = SKLabelNode(text: "🌟 \(reason) 🌟")
+        titleLabel.fontSize = 48
+        titleLabel.fontName = "PingFangSC-Heavy"
+        titleLabel.fontColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0)
+        titleLabel.position = CGPoint(x: 0, y: 150)
+        overlay.addChild(titleLabel)
+        
+        // 副标题
+        let subtitleLabel = SKLabelNode(text: "自动连续消除 \(times) 次")
+        subtitleLabel.fontSize = 32
+        subtitleLabel.fontName = "PingFangSC-Semibold"
+        subtitleLabel.fontColor = SKColor(red: 0.8, green: 0.6, blue: 1.0, alpha: 1.0)
+        subtitleLabel.position = CGPoint(x: 0, y: 100)
+        overlay.addChild(subtitleLabel)
+        
+        // 效果描述
+        let effectLabel = SKLabelNode(text: "剑阵自动移动，连续消除")
+        effectLabel.fontSize = 20
+        effectLabel.fontName = "PingFangSC-Regular"
+        effectLabel.fontColor = .white
+        effectLabel.position = CGPoint(x: 0, y: 60)
+        overlay.addChild(effectLabel)
+        
+        // 动画计数器
+        let counterLabel = SKLabelNode(text: "准备中...")
+        counterLabel.fontSize = 36
+        counterLabel.fontName = "PingFangSC-Heavy"
+        counterLabel.fontColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0)
+        counterLabel.position = CGPoint(x: 0, y: -50)
+        counterLabel.name = "comboCounter"
+        overlay.addChild(counterLabel)
+        
+        // 开始自动连续消除
+        startAutoComboSequence(times: times, overlay: overlay)
+    }
+    
+    private func startAutoComboSequence(times: Int, overlay: SKNode) {
+        let remainingTimes = times
+        let counterLabel = overlay.childNode(withName: "comboCounter") as? SKLabelNode
+        
+        // 延迟1秒开始
+        run(SKAction.sequence([
+            SKAction.wait(forDuration: 1.0),
+            SKAction.run { [weak self] in
+                self?.executeAutoComboStep(remainingTimes: remainingTimes, overlay: overlay, counterLabel: counterLabel)
+            }
+        ]))
+    }
+    
+    private func executeAutoComboStep(remainingTimes: Int, overlay: SKNode, counterLabel: SKLabelNode?) {
+        guard remainingTimes > 0 else {
+            // 完成所有自动消除
+            finishAutoCombo(overlay: overlay)
+            return
         }
         
-        // 延迟补充
+        counterLabel?.text = "第 \(4 - remainingTimes) 次消除"
+        counterLabel?.run(SKAction.sequence([
+            SKAction.scale(to: 1.3, duration: 0.2),
+            SKAction.scale(to: 1.0, duration: 0.2)
+        ]))
+        
+        // 执行一次自动消除
+        performAutoComboMove { [weak self] in
+            // 等待消除动画完成后继续下一次
+            self?.run(SKAction.sequence([
+                SKAction.wait(forDuration: 1.5),
+                SKAction.run {
+                    self?.executeAutoComboStep(remainingTimes: remainingTimes - 1, overlay: overlay, counterLabel: counterLabel)
+                }
+            ]))
+        }
+    }
+    
+    private func performAutoComboMove(completion: @escaping () -> Void) {
+        // 寻找最佳的移动和消除机会
+        if let bestMove = findBestAutoMove() {
+            // 执行移动
+            executeAutoMove(bestMove) { [weak self] in
+                // 检查并执行消除
+                self?.checkForMatches()
+                completion()
+            }
+        } else {
+            // 如果没有找到好的移动，随机移动一些剑来创造机会
+            createAutoComboOpportunity {
+                completion()
+            }
+        }
+    }
+    
+    private func findBestAutoMove() -> AutoMove? {
+        // 寻找能产生最多消除的移动
+        var bestMove: AutoMove?
+        var bestScore = 0
+        
+        let allSwords = Array(grid.values)
+        
+        for sword in allSwords {
+            let currentPos = sword.gridPosition
+            let neighbors = getNeighbors(q: currentPos.q, r: currentPos.r)
+            
+            for neighborPos in neighbors {
+                let neighborKey = "\(neighborPos.q)_\(neighborPos.r)"
+                
+                // 检查是否可以移动到这个位置
+                if grid[neighborKey] == nil && !blockedCells.contains(neighborKey) {
+                    // 模拟移动并计算得分
+                    let score = simulateMove(sword: sword, to: neighborPos)
+                    if score > bestScore {
+                        bestScore = score
+                        bestMove = AutoMove(sword: sword, from: currentPos, to: neighborPos, score: score)
+                    }
+                }
+            }
+        }
+        
+        return bestMove
+    }
+    
+    private func simulateMove(sword: Sword, to position: (q: Int, r: Int)) -> Int {
+        // 临时移动剑并计算可能的消除数量
+        let originalPos = sword.gridPosition
+        let originalKey = "\(originalPos.q)_\(originalPos.r)"
+        let newKey = "\(position.q)_\(position.r)"
+        
+        // 临时移动
+        grid.removeValue(forKey: originalKey)
+        grid[newKey] = sword
+        sword.gridPosition = position
+        
+        // 计算消除数量
+        let matches = findMatches(startNode: sword)
+        let score = matches.count >= currentLevel.rules.minMergeCount ? matches.count : 0
+        
+        // 恢复原位置
+        grid.removeValue(forKey: newKey)
+        grid[originalKey] = sword
+        sword.gridPosition = originalPos
+        
+        return score
+    }
+    
+    private func executeAutoMove(_ move: AutoMove, completion: @escaping () -> Void) {
+        let sword = move.sword
+        let fromKey = "\(move.from.q)_\(move.from.r)"
+        let toKey = "\(move.to.q)_\(move.to.r)"
+        
+        // 更新网格
+        grid.removeValue(forKey: fromKey)
+        grid[toKey] = sword
+        sword.gridPosition = move.to
+        
+        // 播放移动动画
+        let targetPoint = hexToPixel(q: move.to.q, r: move.to.r)
+        
+        // 高亮显示移动的剑
+        sword.run(SKAction.sequence([
+            SKAction.group([
+                SKAction.scale(to: 1.3, duration: 0.2),
+                SKAction.colorize(with: .yellow, colorBlendFactor: 0.5, duration: 0.2)
+            ]),
+            SKAction.group([
+                SKAction.move(to: targetPoint, duration: 0.5),
+                SKAction.scale(to: 1.0, duration: 0.3)
+            ]),
+            SKAction.colorize(with: .clear, colorBlendFactor: 0.0, duration: 0.2),
+            SKAction.run {
+                completion()
+            }
+        ]))
+        
+        // 播放移动特效
+        effectsManager.playTapRipple(at: targetPoint)
+    }
+    
+    private func createAutoComboOpportunity(completion: @escaping () -> Void) {
+        // 如果没有明显的消除机会，创造一些
+        let allSwords = Array(grid.values).shuffled()
+        
+        if allSwords.count >= 2 {
+            let sword1 = allSwords[0]
+            let sword2 = allSwords[1]
+            
+            // 交换两把剑的位置
+            _ = sword1.gridPosition
+            _ = sword2.gridPosition
+            
+            swapSwords(sword1, sword2)
+            
+            // 等待交换动画完成
+            run(SKAction.sequence([
+                SKAction.wait(forDuration: 0.5),
+                SKAction.run {
+                    completion()
+                }
+            ]))
+        } else {
+            completion()
+        }
+    }
+    
+    private func finishAutoCombo(overlay: SKNode) {
+        // 显示完成效果
+        let successLabel = SKLabelNode(text: "🎉 连续消除完成！🎉")
+        successLabel.fontSize = 36
+        successLabel.fontName = "PingFangSC-Heavy"
+        successLabel.fontColor = SKColor(red: 0.2, green: 1.0, blue: 0.2, alpha: 1.0)
+        successLabel.position = CGPoint(x: 0, y: -50)
+        overlay.addChild(successLabel)
+        
+        // 播放完成特效
+        effectsManager.playUltimateEffect()
+        
+        // 延迟后关闭界面
         run(SKAction.sequence([
             SKAction.wait(forDuration: 2.0),
-            SKAction.run { [weak self] in self?.replenishSwords(fillAll: true) }
+            SKAction.run { [weak self] in
+                overlay.run(SKAction.sequence([
+                    SKAction.fadeOut(withDuration: 0.5),
+                    SKAction.removeFromParent()
+                ]))
+                
+                // 补充剑阵
+                self?.replenishSwords()
+            }
         ]))
+    }
+    
+    // 辅助结构体
+    private struct AutoMove {
+        let sword: Sword
+        let from: (q: Int, r: Int)
+        let to: (q: Int, r: Int)
+        let score: Int
     }
     
     // MARK: - Score & Energy
@@ -1279,23 +1675,19 @@ class GameScene: SKScene {
         // 庆祝特效
         effectsManager.playLevelCompleteEffect(stars: stars)
         
-        // 保存当前关卡索引（在更新之前）
-        let currentLevelIdx = LevelConfig.shared.currentLevelIndex
+        // 使用新的游戏状态管理系统
+        GameStateManager.shared.completeLevel(currentLevel.id, stars: stars, score: score)
         
         // 延迟显示结算界面
         run(SKAction.sequence([
             SKAction.wait(forDuration: 1.5),
             SKAction.run { [weak self] in
-                self?.showLevelCompleteUI(stars: stars, currentLevelIdx: currentLevelIdx)
-                // 在显示 UI 之后再完成关卡（更新索引）
-                if stars > 0 {
-                    LevelConfig.shared.completeLevel(stars: stars)
-                }
+                self?.showLevelCompleteUI(stars: stars)
             }
         ]))
     }
     
-    private func showLevelCompleteUI(stars: Int, currentLevelIdx: Int) {
+    private func showLevelCompleteUI(stars: Int) {
         // 创建半透明背景
         let overlay = SKShapeNode(rectOf: size)
         overlay.fillColor = SKColor(white: 0, alpha: 0.85)
@@ -1316,9 +1708,19 @@ class GameScene: SKScene {
         titleLabel.zPosition = 1
         overlay.addChild(titleLabel)
         
+        // 修为称号显示
+        let cultivationTitle = GameStateManager.shared.getCultivationTitle()
+        let cultivationLabel = SKLabelNode(text: "修为境界: \(cultivationTitle)")
+        cultivationLabel.fontSize = 20
+        cultivationLabel.fontName = "PingFangSC-Semibold"
+        cultivationLabel.fontColor = SKColor(red: 0.8, green: 0.6, blue: 1.0, alpha: 1.0)
+        cultivationLabel.position = CGPoint(x: 0, y: 165)
+        cultivationLabel.zPosition = 1
+        overlay.addChild(cultivationLabel)
+        
         // 星星显示
         let starContainer = SKNode()
-        starContainer.position = CGPoint(x: 0, y: 140)
+        starContainer.position = CGPoint(x: 0, y: 130)
         starContainer.zPosition = 1
         for i in 0..<3 {
             let star = SKLabelNode(text: i < stars ? "⭐️" : "☆")
@@ -1346,7 +1748,7 @@ class GameScene: SKScene {
         scoreInfo.fontSize = 22
         scoreInfo.fontName = "PingFangSC-Regular"
         scoreInfo.fontColor = .white
-        scoreInfo.position = CGPoint(x: 0, y: 80)
+        scoreInfo.position = CGPoint(x: 0, y: 70)
         scoreInfo.zPosition = 1
         overlay.addChild(scoreInfo)
         
@@ -1354,7 +1756,7 @@ class GameScene: SKScene {
         mergeInfo.fontSize = 22
         mergeInfo.fontName = "PingFangSC-Regular"
         mergeInfo.fontColor = .white
-        mergeInfo.position = CGPoint(x: 0, y: 55)
+        mergeInfo.position = CGPoint(x: 0, y: 45)
         mergeInfo.zPosition = 1
         overlay.addChild(mergeInfo)
         
@@ -1363,7 +1765,7 @@ class GameScene: SKScene {
         achievementsTitle.fontSize = 20
         achievementsTitle.fontName = "PingFangSC-Semibold"
         achievementsTitle.fontColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0)
-        achievementsTitle.position = CGPoint(x: 0, y: 20)
+        achievementsTitle.position = CGPoint(x: 0, y: 10)
         achievementsTitle.zPosition = 1
         overlay.addChild(achievementsTitle)
         
@@ -1372,7 +1774,7 @@ class GameScene: SKScene {
         
         // 显示成就（最多显示4个）
         let displayAchievements = Array(achievements.prefix(4))
-        let startY: CGFloat = -10
+        let startY: CGFloat = -20
         let spacing: CGFloat = 35
         
         for (index, achievement) in displayAchievements.enumerated() {
@@ -1395,10 +1797,13 @@ class GameScene: SKScene {
         }
         
         // 按钮容器
-        let buttonY: CGFloat = -160
+        let buttonY: CGFloat = -170
         
-        // 判断是否显示下一关按钮
-        if currentLevelIdx < LevelConfig.shared.levels.count - 1 {
+        // 判断是否有下一关
+        let hasNextLevel = GameStateManager.shared.unlockedLevels.contains(currentLevel.id + 1) || 
+                          currentLevel.id < LevelConfig.shared.levels.count
+        
+        if hasNextLevel {
             // 下一关按钮
             let nextBtn = createStyledButton(
                 text: "下一关 ➡️",
@@ -1604,28 +2009,39 @@ class GameScene: SKScene {
         // 音效
         SoundManager.shared.playGameOver()
         
+        // 使用新的失败处理机制
+        GameStateManager.shared.failLevel(currentLevel.id)
+        
         let label = SKLabelNode(text: "剑道未成")
         label.fontSize = 45
         label.fontName = "PingFangSC-Heavy"
         label.fontColor = .white
-        label.position = CGPoint(x: 0, y: 60)
+        label.position = CGPoint(x: 0, y: 80)
         overlay.addChild(label)
         
-        let subLabel = SKLabelNode(text: "但你已更近一步")
+        let subLabel = SKLabelNode(text: "修为保留，再接再厉")
         subLabel.fontSize = 18
         subLabel.fontName = "PingFangSC-Regular"
         subLabel.fontColor = SKColor(white: 0.6, alpha: 1.0)
-        subLabel.position = CGPoint(x: 0, y: 20)
+        subLabel.position = CGPoint(x: 0, y: 40)
         overlay.addChild(subLabel)
         
-        let scoreLabel = SKLabelNode(text: "修为: \(score)")
-        scoreLabel.fontSize = 28
-        scoreLabel.fontName = "PingFangSC-Bold"
+        // 显示修为保留信息
+        let cultivationLabel = SKLabelNode(text: "修为: \(GameStateManager.shared.cultivation) (已保留)")
+        cultivationLabel.fontSize = 24
+        cultivationLabel.fontName = "PingFangSC-Bold"
+        cultivationLabel.fontColor = SKColor(red: 0.8, green: 0.6, blue: 1.0, alpha: 1.0)
+        cultivationLabel.position = CGPoint(x: 0, y: 0)
+        overlay.addChild(cultivationLabel)
+        
+        let scoreLabel = SKLabelNode(text: "本次得分: \(score)")
+        scoreLabel.fontSize = 20
+        scoreLabel.fontName = "PingFangSC-Regular"
         scoreLabel.fontColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0)
-        scoreLabel.position = CGPoint(x: 0, y: -40)
+        scoreLabel.position = CGPoint(x: 0, y: -30)
         overlay.addChild(scoreLabel)
         
-        let restartBtn = createButton(text: "再修一局", position: CGPoint(x: 0, y: -120))
+        let restartBtn = createButton(text: "再修一局", position: CGPoint(x: 0, y: -100))
         restartBtn.name = "restartBtn"
         overlay.addChild(restartBtn)
     }
@@ -1714,6 +2130,7 @@ class GameScene: SKScene {
         comboCount = 0
         moveCount = 0
         isGameOver = false
+        ultimatePatternHintShown = false  // 重置终极奥义提示状态
         
         // 重置成就追踪
         maxCombo = 0
@@ -1742,13 +2159,37 @@ class GameScene: SKScene {
         updateUI()
         spawnInitialSwords()
         
+        // 显示新关卡的终极奥义提示
+        showUltimatePatternHint()
+        
         effectsManager.playLevelStartEffect(levelName: currentLevel.name)
     }
     
     private func goToNextLevel() {
-        // 注意：索引已经在 completeLevel 中更新过了
-        // 这里只需要重启游戏即可
+        // 使用新的游戏状态管理系统进入下一关
         restartGame()
+    }
+    
+    private func createButton(text: String, position: CGPoint) -> SKNode {
+        let container = SKNode()
+        container.position = position
+        
+        // 按钮背景
+        let background = SKShapeNode(rectOf: CGSize(width: 200, height: 50), cornerRadius: 12)
+        background.fillColor = SKColor(red: 0.2, green: 0.8, blue: 0.3, alpha: 1.0)
+        background.strokeColor = .white
+        background.lineWidth = 2
+        container.addChild(background)
+        
+        // 按钮文字
+        let label = SKLabelNode(text: text)
+        label.fontSize = 24
+        label.fontName = "PingFangSC-Semibold"
+        label.fontColor = .white
+        label.verticalAlignmentMode = .center
+        container.addChild(label)
+        
+        return container
     }
     
     // MARK: - Playability
@@ -1777,41 +2218,16 @@ class GameScene: SKScene {
     
     private func fixBoardState() {
         let allSwords = Array(grid.values)
-        if allSwords.count < currentLevel.rules.minMergeCount { return }
-        
-        var typeCounts: [SwordType: Int] = [:]
-        for sword in allSwords {
-            typeCounts[sword.type, default: 0] += 1
-        }
-        
-        let mostCommonType = typeCounts.max(by: { $0.value < $1.value })?.key ?? .fan
-        var needToChange = max(0, currentLevel.rules.minMergeCount - (typeCounts[mostCommonType] ?? 0))
-        
-        for sword in allSwords.shuffled() {
-            if needToChange <= 0 { break }
-            if sword.type != mostCommonType {
-                sword.type = mostCommonType
-                if let label = sword.childNode(withName: "label") as? SKLabelNode {
-                    label.text = mostCommonType.name
-                }
-                if let hex = sword.childNode(withName: "hexShape") as? SKShapeNode {
-                    hex.fillColor = mostCommonType.color
-                }
-                needToChange -= 1
+        if allSwords.count >= 3 {
+            // 随机选择3把剑，将它们改为相同类型
+            let selectedSwords = allSwords.shuffled().prefix(3)
+            let targetType = selectedSwords.first?.type ?? .fan
+            
+            for sword in selectedSwords.dropFirst() {
+                sword.changeType(to: targetType)
             }
+            
+            effectsManager.showFeedbackText("剑阵重组!", at: .zero, style: .good)
         }
-        
-        effectsManager.showFeedbackText("剑阵调整", at: .zero, style: .normal)
-    }
-    
-    // MARK: - Helpers
-    
-    private func createButton(text: String, position: CGPoint) -> SKLabelNode {
-        let button = SKLabelNode(text: text)
-        button.fontSize = 28
-        button.fontName = "PingFangSC-Bold"
-        button.fontColor = SKColor(red: 0.2, green: 1.0, blue: 0.2, alpha: 1.0)
-        button.position = position
-        return button
     }
 }
