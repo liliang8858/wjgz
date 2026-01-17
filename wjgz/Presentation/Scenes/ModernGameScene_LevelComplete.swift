@@ -62,13 +62,28 @@ extension ModernGameScene {
         mainContainer.zPosition = 1
         overlay.addChild(mainContainer)
         
-        // 标题
-        let titleLabel = SKLabelNode(text: "⚔️ 关卡完成 ⚔️")
-        titleLabel.fontSize = 36
+        // 🎉 更醒目的标题
+        let titleLabel = SKLabelNode(text: "🎉 关卡完成！🎉")
+        titleLabel.fontSize = 42
         titleLabel.fontName = "PingFangSC-Heavy"
         titleLabel.fontColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0)
-        titleLabel.position = CGPoint(x: 0, y: 150)
+        titleLabel.position = CGPoint(x: 0, y: 180)
         mainContainer.addChild(titleLabel)
+        
+        // 添加脉冲动画
+        let pulse = SKAction.sequence([
+            SKAction.scale(to: 1.1, duration: 0.5),
+            SKAction.scale(to: 1.0, duration: 0.5)
+        ])
+        titleLabel.run(SKAction.repeatForever(pulse))
+        
+        // 关卡信息
+        let levelInfo = SKLabelNode(text: "第\(completedLevelId)关 - \(currentLevel.name)")
+        levelInfo.fontSize = 24
+        levelInfo.fontName = "PingFangSC-Semibold"
+        levelInfo.fontColor = SKColor(red: 0.2, green: 0.9, blue: 0.7, alpha: 1.0)
+        levelInfo.position = CGPoint(x: 0, y: 130)
+        mainContainer.addChild(levelInfo)
         
         // 星星显示
         for i in 0..<3 {
@@ -91,31 +106,47 @@ extension ModernGameScene {
         }
         
         // 分数信息
-        let scoreInfo = SKLabelNode(text: "修为: \(score)")
+        let scoreInfo = SKLabelNode(text: "本关得分: \(score)")
         scoreInfo.fontSize = 20
         scoreInfo.fontName = "PingFangSC-Regular"
         scoreInfo.fontColor = .white
         scoreInfo.position = CGPoint(x: 0, y: 20)
         mainContainer.addChild(scoreInfo)
         
+        // 修为信息
+        let cultivationInfo = SKLabelNode(text: "总修为: \(GameStateManager.shared.cultivation + score)")
+        cultivationInfo.fontSize = 18
+        cultivationInfo.fontName = "PingFangSC-Regular"
+        cultivationInfo.fontColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0)
+        cultivationInfo.position = CGPoint(x: 0, y: -10)
+        mainContainer.addChild(cultivationInfo)
+        
         // 按钮区域
         let nextLevelId = completedLevelId + 1
         let hasNextLevel = nextLevelId <= LevelConfig.shared.levels.count
         
         if hasNextLevel {
-            // 下一关按钮
+            // 🚀 更醒目的下一关按钮
             let nextBtn = createStyledButton(
-                text: "下一关 ➡️",
-                position: CGPoint(x: 0, y: -50),
+                text: "🚀 进入第\(nextLevelId)关 🚀",
+                position: CGPoint(x: 0, y: -70),
                 color: SKColor(red: 0.2, green: 0.8, blue: 0.3, alpha: 1.0),
-                name: "nextLevelBtn"
+                name: "nextLevelBtn",
+                fontSize: 28
             )
             mainContainer.addChild(nextBtn)
+            
+            // 添加按钮脉冲动画
+            let buttonPulse = SKAction.sequence([
+                SKAction.scale(to: 1.05, duration: 0.6),
+                SKAction.scale(to: 1.0, duration: 0.6)
+            ])
+            nextBtn.run(SKAction.repeatForever(buttonPulse))
             
             // 重新挑战按钮
             let restartBtn = createStyledButton(
                 text: "重新挑战",
-                position: CGPoint(x: 0, y: -120),
+                position: CGPoint(x: 0, y: -140),
                 color: SKColor(red: 0.5, green: 0.5, blue: 0.5, alpha: 1.0),
                 name: "restartBtn",
                 fontSize: 18
@@ -125,12 +156,20 @@ extension ModernGameScene {
             // 重新挑战按钮
             let restartBtn = createStyledButton(
                 text: "重新挑战",
-                position: CGPoint(x: 0, y: -50),
+                position: CGPoint(x: 0, y: -70),
                 color: SKColor(red: 0.2, green: 0.8, blue: 0.3, alpha: 1.0),
                 name: "restartBtn"
             )
             mainContainer.addChild(restartBtn)
         }
+        
+        // 🔧 添加调试信息
+        let debugInfo = SKLabelNode(text: "调试: 已解锁关卡 \(GameStateManager.shared.unlockedLevels)")
+        debugInfo.fontSize = 12
+        debugInfo.fontName = "PingFangSC-Regular"
+        debugInfo.fontColor = SKColor(white: 0.5, alpha: 1.0)
+        debugInfo.position = CGPoint(x: 0, y: -200)
+        mainContainer.addChild(debugInfo)
     }
     
     // 创建样式化按钮

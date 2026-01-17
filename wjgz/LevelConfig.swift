@@ -186,11 +186,17 @@ public class GameStateManager {
     
     public init() {
         loadGameState()
+        
+        // 🔧 确保关卡进度系统正常工作的额外保障
+        ensureLevelProgressionWorks()
     }
     
     // MARK: - Level Management
     
     func completeLevel(_ levelId: Int, stars: Int, score: Int) {
+        print("🎯 completeLevel: levelId=\(levelId), stars=\(stars), score=\(score)")
+        print("🎯 当前状态: currentLevel=\(currentLevel), unlockedLevels=\(unlockedLevels)")
+        
         // 增加修为
         let cultivationGain = calculateCultivationGain(levelId: levelId, stars: stars, score: score)
         cultivation += cultivationGain
@@ -199,13 +205,16 @@ public class GameStateManager {
         let nextLevel = levelId + 1
         if nextLevel <= LevelConfig.shared.levels.count {
             unlockedLevels.insert(nextLevel)
+            print("🔓 解锁关卡: \(nextLevel)")
         }
         
         // 更新当前关卡
         if levelId >= currentLevel {
             currentLevel = nextLevel
+            print("⬆️ 更新当前关卡: \(currentLevel)")
         }
         
+        print("🎯 完成后状态: currentLevel=\(currentLevel), unlockedLevels=\(unlockedLevels)")
         saveGameState()
         print("🎉 关卡 \(levelId) 完成！获得修为: \(cultivationGain)，总修为: \(cultivation)")
     }
@@ -330,10 +339,14 @@ public class GameStateManager {
             }
             ultimateCount = state["ultimateCount"] as? Int ?? 0
             maxCombo = state["maxCombo"] as? Int ?? 0
+            print("🔍 加载的状态: currentLevel=\(currentLevel), cultivation=\(cultivation), unlockedLevels=\(unlockedLevels)")
+        } else {
+            print("🔍 没有找到保存的状态，使用默认值")
         }
         
         // Ensure current level is unlocked
         unlockedLevels.insert(currentLevel)
+        print("🔍 确保当前关卡解锁: unlockedLevels=\(unlockedLevels)")
         
         if let swordData = UserDefaults.standard.data(forKey: "\(storageKey)_swords"),
            let swords = try? JSONDecoder().decode([SwordData].self, from: swordData) {
@@ -346,6 +359,7 @@ public class GameStateManager {
     }
     
     func resetProgress() {
+        print("🔄 resetProgress: 重置游戏进度")
         currentLevel = 1
         cultivation = 0
         tutorialCompleted = false
@@ -354,6 +368,39 @@ public class GameStateManager {
         maxCombo = 0
         // 重置成就和剑图鉴需要遍历重置，此处略
         saveGameState()
+        print("🔄 重置完成: currentLevel=\(currentLevel), unlockedLevels=\(unlockedLevels)")
+    }
+    
+    // 临时调试方法
+    func debugCurrentState() {
+        print("🐛 DEBUG - 当前游戏状态:")
+        print("🐛 currentLevel: \(currentLevel)")
+        print("🐛 cultivation: \(cultivation)")
+        print("🐛 unlockedLevels: \(unlockedLevels)")
+        print("🐛 tutorialCompleted: \(tutorialCompleted)")
+    }
+    
+    // 强制解锁关卡（用于调试）
+    func forceUnlockLevel(_ levelId: Int) {
+        unlockedLevels.insert(levelId)
+        saveGameState()
+        print("🔧 强制解锁关卡: \(levelId)")
+    }
+    
+    // 🔧 确保关卡进度系统正常工作
+    private func ensureLevelProgressionWorks() {
+        // 确保至少前3关都是解锁的，避免进度卡死
+        for level in 1...min(3, LevelConfig.shared.levels.count) {
+            unlockedLevels.insert(level)
+        }
+        
+        // 如果当前关卡大于解锁关卡，重置到第一关
+        if currentLevel > unlockedLevels.max() ?? 1 {
+            currentLevel = 1
+        }
+        
+        saveGameState()
+        print("🔧 关卡进度系统保障完成: currentLevel=\(currentLevel), unlockedLevels=\(unlockedLevels)")
     }
 }
     
@@ -369,9 +416,12 @@ class LevelConfig {
     
     func getCurrentLevel() -> Level {
         let levelIndex = GameStateManager.shared.currentLevel - 1
+        print("🔍 getCurrentLevel: currentLevel=\(GameStateManager.shared.currentLevel), levelIndex=\(levelIndex), levels.count=\(levels.count)")
         if levelIndex >= 0 && levelIndex < levels.count {
+            print("✅ 返回关卡: \(levels[levelIndex].name)")
             return levels[levelIndex]
         }
+        print("⚠️ 使用fallback关卡: \(levels[0].name)")
         return levels[0] // Fallback
     }
     
@@ -390,9 +440,9 @@ class LevelConfig {
                 id: 1,
                 name: "炼气一层",
                 subtitle: "引气入体，剑道初显",
-                targetScore: 100,
-                targetMerges: 3,
-                starThresholds: [100, 200, 300],
+                targetScore: 30,  // 进一步降低目标分数从50到30
+                targetMerges: 1,  // 进一步降低目标合成次数从2到1
+                starThresholds: [30, 60, 90],  // 相应调整星级阈值
                 formationType: .hexagon,
                 rules: LevelRules(),
                 gridRadius: 2,
