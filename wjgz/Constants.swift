@@ -29,19 +29,19 @@ public enum SwordType: Int, CaseIterable, Codable {
     
     var color: UIColor {
         switch self {
-        case .fan: return UIColor(red: 0.7, green: 0.7, blue: 0.75, alpha: 1.0)
-        case .ling: return UIColor(red: 0.2, green: 0.9, blue: 0.7, alpha: 1.0)
-        case .xian: return UIColor(red: 0.7, green: 0.5, blue: 1.0, alpha: 1.0)
-        case .shen: return UIColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 1.0)
+        case .fan: return UIColor(red: 0.545, green: 0.271, blue: 0.075, alpha: 1.0) // #8b4513
+        case .ling: return UIColor(red: 0.118, green: 0.565, blue: 1.0, alpha: 1.0) // #1e90ff
+        case .xian: return UIColor(red: 1.0, green: 0.843, blue: 0.0, alpha: 1.0) // #ffd700
+        case .shen: return UIColor(red: 1.0, green: 0.549, blue: 0.0, alpha: 1.0) // #ff8c00
         }
     }
     
     var glowColor: UIColor {
         switch self {
-        case .fan: return UIColor(white: 0.8, alpha: 0.5)
-        case .ling: return UIColor(red: 0.2, green: 1.0, blue: 0.8, alpha: 0.7)
-        case .xian: return UIColor(red: 0.8, green: 0.5, blue: 1.0, alpha: 0.8)
-        case .shen: return UIColor(red: 1.0, green: 0.9, blue: 0.3, alpha: 1.0)
+        case .fan: return UIColor(red: 1.0, green: 0.271, blue: 0.0, alpha: 0.5) // #ff4500
+        case .ling: return UIColor(red: 0.0, green: 0.749, blue: 1.0, alpha: 0.7) // #00bfff
+        case .xian: return UIColor(red: 0.576, green: 0.2, blue: 0.918, alpha: 0.8) // #9333ea
+        case .shen: return UIColor(red: 1.0, green: 0.843, blue: 0.0, alpha: 1.0) // #ffd700
         }
     }
     

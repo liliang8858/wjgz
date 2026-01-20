@@ -48,39 +48,142 @@ public class Sword: SKSpriteNode {
         let hexShape = SKShapeNode(path: hexPath)
         hexShape.fillColor = type.color
         hexShape.strokeColor = .white
-        hexShape.lineWidth = 2
+        hexShape.lineWidth = 1.5
         hexShape.name = "hexShape"
         addChild(hexShape)
         
-        // Glow effect
+        // Glow effect (Volume glow)
         let glow = SKShapeNode(path: hexPath)
         glow.fillColor = .clear
         glow.strokeColor = type.glowColor
-        glow.lineWidth = 4
+        glow.lineWidth = 3
         glow.alpha = 0.6
-        glow.glowWidth = 8
+        glow.glowWidth = 12
         glow.name = "glow"
         glowNode = glow
         addChild(glow)
         
         // Sword type label
         let label = SKLabelNode(text: type.name)
-        label.fontSize = 26
-        label.fontName = "PingFangSC-Heavy"
-        label.fontColor = type == .fan ? .darkGray : .white
+        label.fontSize = 28
+        label.fontName = "Ma Shan Zheng" // 使用设计要求的书法字体
+        if label.fontName == nil { label.fontName = "PingFangSC-Heavy" }
+        label.fontColor = .white
         label.verticalAlignmentMode = .center
-        label.zPosition = 2
+        label.zPosition = 5
         label.name = "label"
         addChild(label)
         
-        // Inner shine for higher tier swords
-        if type.rawValue >= 2 {
-            let shine = SKShapeNode(circleOfRadius: GameConfig.tileRadius * 0.3)
-            shine.fillColor = UIColor.white.withAlphaComponent(0.3)
-            shine.strokeColor = .clear
-            shine.position = CGPoint(x: -8, y: 8)
-            shine.zPosition = 1
-            addChild(shine)
+        // Add Specific VFX layers based on type
+        addTierSpecificVFX()
+    }
+    
+    private func addTierSpecificVFX() {
+        switch type {
+        case .fan:
+            // 凡剑：剑尖红热效果
+            let hotTip = SKShapeNode(circleOfRadius: 10)
+            hotTip.fillColor = UIColor(red: 1.0, green: 0.27, blue: 0.0, alpha: 0.6)
+            hotTip.strokeColor = .clear
+            hotTip.position = CGPoint(x: 0, y: -GameConfig.tileRadius * 0.5)
+            hotTip.zPosition = 1
+            hotTip.glowWidth = 10
+            addChild(hotTip)
+            
+            hotTip.run(SKAction.repeatForever(SKAction.sequence([
+                SKAction.fadeAlpha(to: 0.3, duration: 1.0),
+                SKAction.fadeAlpha(to: 0.8, duration: 1.0)
+            ])))
+            
+        case .ling:
+            // 灵剑：蓝色流光效果
+            let stream = SKShapeNode(rectOf: CGSize(width: 40, height: 4))
+            stream.fillColor = UIColor(red: 0.0, green: 0.75, blue: 1.0, alpha: 0.4)
+            stream.strokeColor = .clear
+            stream.zPosition = 2
+            stream.glowWidth = 5
+            addChild(stream)
+            
+            stream.run(SKAction.repeatForever(SKAction.sequence([
+                SKAction.group([
+                    SKAction.moveBy(x: 0, y: 30, duration: 1.5),
+                    SKAction.fadeOut(withDuration: 1.5)
+                ]),
+                SKAction.run { stream.position = CGPoint(x: 0, y: -30); stream.alpha = 0.4 }
+            ])))
+            
+            // 气泡
+            for i in 0..<3 {
+                let bubble = SKShapeNode(circleOfRadius: 3)
+                bubble.fillColor = .white
+                bubble.alpha = 0.5
+                bubble.position = CGPoint(x: CGFloat.random(in: -15...15), y: -20)
+                bubble.zPosition = 3
+                addChild(bubble)
+                
+                bubble.run(SKAction.repeatForever(SKAction.sequence([
+                    SKAction.wait(forDuration: Double(i) * 0.4),
+                    SKAction.group([
+                        SKAction.moveBy(x: CGFloat.random(in: -10...10), y: 40, duration: 1.2),
+                        SKAction.fadeOut(withDuration: 1.2)
+                    ]),
+                    SKAction.run { bubble.position = CGPoint(x: CGFloat.random(in: -15...15), y: -20); bubble.alpha = 0.5 }
+                ])))
+            }
+            
+        case .xian:
+            // 仙剑：紫色光晕和符文环
+            let aura = SKShapeNode(circleOfRadius: 45)
+            aura.fillColor = .clear
+            aura.strokeColor = UIColor(red: 0.58, green: 0.2, blue: 0.92, alpha: 0.4)
+            aura.lineWidth = 2
+            aura.glowWidth = 15
+            aura.zPosition = -1
+            addChild(aura)
+            aura.run(SKAction.repeatForever(SKAction.sequence([
+                SKAction.scale(to: 1.1, duration: 2.0),
+                SKAction.scale(to: 0.9, duration: 2.0)
+            ])))
+            
+            // 符文环 (使用虚线模拟)
+            let runeCircle = SKShapeNode(circleOfRadius: 40)
+            runeCircle.fillColor = .clear
+            runeCircle.strokeColor = UIColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 0.6)
+            runeCircle.lineWidth = 1
+            // 注意：SpriteKit的SKShapeNode不支持lineDashPattern，我们使用实线代替
+            runeCircle.zPosition = 4
+            addChild(runeCircle)
+            runeCircle.run(SKAction.repeatForever(SKAction.rotate(byAngle: .pi * 2, duration: 8.0)))
+            
+        case .shen:
+            // 神剑：强烈金光和闪烁
+            let divineGlow = SKShapeNode(circleOfRadius: 50)
+            divineGlow.fillColor = .clear
+            divineGlow.strokeColor = .orange
+            divineGlow.lineWidth = 3
+            divineGlow.glowWidth = 20
+            divineGlow.zPosition = -1
+            addChild(divineGlow)
+            
+            for _ in 0..<5 {
+                let spark = SKShapeNode(rectOf: CGSize(width: 2, height: 2))
+                spark.fillColor = .white
+                spark.position = .zero
+                spark.zPosition = 6
+                addChild(spark)
+                
+                let angle = CGFloat.random(in: 0...(.pi * 2))
+                let dist = CGFloat.random(in: 20...50)
+                spark.run(SKAction.repeatForever(SKAction.sequence([
+                    SKAction.wait(forDuration: Double.random(in: 0...1.0)),
+                    SKAction.group([
+                        SKAction.moveBy(x: cos(angle) * dist, y: sin(angle) * dist, duration: 0.5),
+                        SKAction.fadeOut(withDuration: 0.5),
+                        SKAction.scale(to: 2.0, duration: 0.5)
+                    ]),
+                    SKAction.run { spark.position = .zero; spark.alpha = 1.0; spark.setScale(1.0) }
+                ])))
+            }
         }
     }
     
