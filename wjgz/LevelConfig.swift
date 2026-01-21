@@ -29,6 +29,33 @@ public enum FormationType: String, CaseIterable, Codable {
     case jiugong = "九宫阵"      // 九宫格
     case tiangang = "天罡阵"     // 三十六天罡
     
+    // 新增高级阵型 (25-48关专用)
+    case liuhe = "六合阵法"      // 六合无敌
+    case beidou = "北斗七星"     // 北斗指引
+    case sancai = "三才合璧"     // 天地人三才
+    case sixiang = "四象阵"      // 青龙白虎朱雀玄武
+    case wuji = "无极阵"         // 无极生太极
+    case taiji = "太极阵法"      // 太极生两仪
+    case liangyi = "两仪阵"      // 两仪生四象
+    case qixing = "七星连珠"     // 七星连珠
+    case jiulong = "九龙朝天"    // 九龙朝天
+    case shier = "十二元辰"      // 十二元辰
+    case ershiba = "二十八宿"    // 二十八星宿
+    case sanshiliu = "三十六计"  // 三十六计
+    case qishier = "七十二变"    // 七十二变化
+    case yibai = "一百零八"      // 一百零八将
+    case zhoutian = "周天星斗"   // 周天星斗大阵
+    case xiantian = "先天八卦"   // 先天八卦阵
+    case houtian = "后天八卦"    // 后天八卦阵
+    case wanfa = "万法归宗"      // 万法归宗大阵
+    case wuji_ultimate = "无极至尊" // 无极至尊阵
+    case chaos = "混沌初开"      // 混沌初开阵
+    case creation = "开天辟地"   // 开天辟地阵
+    case infinity = "无穷无尽"   // 无穷无尽阵
+    case transcendence = "超凡入圣" // 超凡入圣阵
+    case immortal = "仙人指路"   // 仙人指路阵
+    case divine = "神魔乱舞"     // 神魔乱舞阵
+    
     var description: String {
         switch self {
         case .hexagon: return "经典六边形剑阵"
@@ -51,6 +78,33 @@ public enum FormationType: String, CaseIterable, Codable {
         case .wuxing: return "五行相生，循环不息"
         case .jiugong: return "九宫飞星，变化无穷"
         case .tiangang: return "天罡北斗，镇压四方"
+        
+        // 新增阵型描述
+        case .liuhe: return "六合无敌，天地四方"
+        case .beidou: return "北斗七星，指引方向"
+        case .sancai: return "三才合璧，天地人和"
+        case .sixiang: return "四象护法，青龙白虎"
+        case .wuji: return "无极生太极，道法自然"
+        case .taiji: return "太极生两仪，阴阳调和"
+        case .liangyi: return "两仪生四象，变化无穷"
+        case .qixing: return "七星连珠，天象异变"
+        case .jiulong: return "九龙朝天，威震四方"
+        case .shier: return "十二元辰，时空轮转"
+        case .ershiba: return "二十八宿，星辰大海"
+        case .sanshiliu: return "三十六计，兵法无双"
+        case .qishier: return "七十二变，神通广大"
+        case .yibai: return "一百零八将，英雄聚义"
+        case .zhoutian: return "周天星斗，宇宙洪荒"
+        case .xiantian: return "先天八卦，混沌初分"
+        case .houtian: return "后天八卦，造化玄机"
+        case .wanfa: return "万法归宗，至高无上"
+        case .wuji_ultimate: return "无极至尊，超越一切"
+        case .chaos: return "混沌初开，天地未分"
+        case .creation: return "开天辟地，创世神威"
+        case .infinity: return "无穷无尽，永恒循环"
+        case .transcendence: return "超凡入圣，脱胎换骨"
+        case .immortal: return "仙人指路，飞升在即"
+        case .divine: return "神魔乱舞，天地同寿"
         }
     }
 }
@@ -431,6 +485,6 @@ class LevelConfig {
     }
     
     private func loadLevels() {
-        loadOptimizedLevels()  // 使用24关的完整配置
+        loadExtended48Levels()  // 使用48关的完整配置
     }
 }

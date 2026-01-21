@@ -122,9 +122,9 @@ public struct GameConstants {
     
     // MARK: - Level Progression
     
-    public static let totalLevels = 24
-    public static let chaptersCount = 8
-    public static let levelsPerChapter = 3
+    public static let totalLevels = 48
+    public static let chaptersCount = 12
+    public static let levelsPerChapter = 4
     
     // MARK: - Star Requirements
     

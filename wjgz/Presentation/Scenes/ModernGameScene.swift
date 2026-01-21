@@ -604,6 +604,11 @@ public final class ModernGameScene: SKScene {
             topColor = SKColor(red: 0.1, green: 0.2, blue: 0.4, alpha: 0.15)
             leftColor = SKColor(red: 0.3, green: 0.5, blue: 0.9, alpha: 0.1)
             rightColor = SKColor(red: 0.5, green: 0.3, blue: 0.8, alpha: 0.1)
+        // 新增高级阵型 (25-48关专用) - 使用神秘的紫金配色
+        default:
+            topColor = SKColor(red: 0.6, green: 0.2, blue: 0.8, alpha: 0.15)
+            leftColor = SKColor(red: 1.0, green: 0.84, blue: 0.0, alpha: 0.1)
+            rightColor = SKColor(red: 0.8, green: 0.1, blue: 0.6, alpha: 0.1)
         }
         
         let topGlow = SKShapeNode(circleOfRadius: gradientSize * 0.4)
@@ -692,6 +697,9 @@ public final class ModernGameScene: SKScene {
         case .jiugong:  // 九宫 - 九个位置
             return distance <= 1 || (abs(q) == radius && abs(r) <= 1) || (abs(r) == radius && abs(q) <= 1)
         case .tiangang:  // 天罡 - 大型阵
+            return true
+        // 新增高级阵型 (25-48关专用) - 默认显示所有格子
+        default:
             return true
         }
     }
