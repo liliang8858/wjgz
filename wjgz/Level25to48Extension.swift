@@ -12,15 +12,11 @@ extension LevelConfig {
     
     /// 加载48关完整配置
     func loadExtended48Levels() {
-        levels = loadOriginal24Levels() + loadExtended24Levels()
-    }
-    
-    /// 获取原始24关
-    private func loadOriginal24Levels() -> [Level] {
-        // 创建临时的LevelConfig实例来获取原始24关
-        let tempConfig = LevelConfig()
-        tempConfig.loadOptimizedLevels()
-        return tempConfig.levels
+        // 先加载原始的24关
+        loadOptimizedLevels()
+        
+        // 然后添加扩展的24关 (25-48)
+        levels.append(contentsOf: loadExtended24Levels())
     }
     
     /// 获取扩展的24关 (25-48)
